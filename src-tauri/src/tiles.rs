@@ -85,16 +85,12 @@ pub fn get_data_format_via_query(
 }
 
 pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
-  println!("get_tile_details {}", path.to_string_lossy());
   let manager = SqliteConnectionManager::file(path).with_flags(OpenFlags::SQLITE_OPEN_READ_ONLY);
-  println!("manager done {}", path.to_string_lossy());
   let connection_pool = match r2d2::Pool::new(manager) {
     Ok(connection_pool) => connection_pool,
     Err(err) => return Err(Error::Pool(err)),
   };
-  println!("connection_pool done {}", path.to_string_lossy());
   let tile_name = path.file_name().and_then(OsStr::to_str).unwrap();
-  println!("tile_name {}", tile_name);
 
   let connection = connection_pool.get().unwrap();
 
@@ -106,7 +102,6 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
   };
   match statement.query_row([], |row| Ok(row.get::<_, i8>(0).unwrap_or(0))) {
     Ok(count) => {
-      println!("count {}", count);
       if count < 2 {
         return Err(Error::MissingTable(String::from(tile_name)));
       }
@@ -122,7 +117,6 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
     },
     Err(err) => return Err(err),
   };
-  println!("tile_format {}", tile_format.content_type());
 
   let mut metadata = TileMeta {
     connection_pool,
@@ -150,11 +144,9 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
     .prepare(r#"SELECT name, value FROM metadata WHERE value IS NOT ''"#)
     .unwrap();
   let mut metadata_rows = statement.query([]).unwrap();
-  println!("checking metadata");
 
   while let Some(row) = metadata_rows.next().unwrap() {
     let label: String = row.get(0).unwrap();
-    println!("label metadata {}", label);
     let value: String = row.get(1).unwrap();
     match label.as_ref() {
       "name" => metadata.name = Some(value),

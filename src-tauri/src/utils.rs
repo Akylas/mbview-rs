@@ -69,18 +69,18 @@ impl DataFormat {
   }
 }
 
-pub fn decode(data: Vec<u8>, data_type: DataFormat) -> Result<String> {
+pub fn decode(data: Vec<u8>, data_type: DataFormat) -> Result<Vec<u8>> {
     match data_type {
         DataFormat::Gzip => {
             let mut z = GzDecoder::new(&data[..]);
-            let mut s = String::new();
-            z.read_to_string(&mut s).unwrap();
+            let mut s = Vec::new();
+            z.read_to_end(&mut s).unwrap();
             Ok(s)
         }
         DataFormat::Zlib => {
             let mut z = ZlibDecoder::new(&data[..]);
-            let mut s = String::new();
-            z.read_to_string(&mut s).unwrap();
+            let mut s = Vec::new();
+            z.read_to_end(&mut s).unwrap();
             Ok(s)
         }
         _ => Err(Error::InvalidDataFormat(String::from(data_type.format()))),

@@ -16,22 +16,18 @@ use notify::Watcher;
 use regex::Regex;
 use serde_json::json;
 use std::sync::Mutex;
-use std::time::Duration;
 
 use std::env;
-use std::fs::File;
-use std::io::Write;
 
 use std::path::Path;
 use tauri::api::{
-  path::{resolve_path, BaseDirectory},
   shell,
 };
 use tauri::{CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu, WindowBuilder, WindowUrl};
 use tauri::{Manager, State, Window};
 
 use crate::tiles::{get_tile_data, get_tile_details, TileMeta};
-use crate::utils::{decode, encode, get_blank_image, get_data_format, DataFormat};
+use crate::utils::{decode, get_blank_image, get_data_format, DataFormat};
 
 lazy_static! {
   static ref TILE_URL_RE: Regex = Regex::new(
@@ -50,7 +46,6 @@ struct MBTiles {
 #[allow(dead_code)]
 static NOT_FOUND: &[u8] = b"Not Found";
 static CONTENT_TYPE: &[u8] = b"Content-Type";
-static CONTENT_ENCODING: &[u8] = b"Content-Encoding";
 
 // the payload type must implement `Serialize`.
 #[derive(serde::Serialize)]
@@ -69,16 +64,14 @@ fn setup_mbtiles(
   app_handle: tauri::AppHandle,
   window: Window,
 ) {
-  let app_dir = app_handle.path_resolver().app_dir();
   let mut data = mbtiles.lock().unwrap();
   if !data.metadata.is_none() {
-    let connection = data.metadata.take().unwrap().connection_pool.get().unwrap();
+    // let connection = data.metadata.take().unwrap().connection_pool.get().unwrap();
     data.metadata = None;
     data.path = None;
   }
   if !path.is_none() {
     let c_path = path.clone().unwrap();
-    println!("c_path {}", c_path);
     if c_path.starts_with("asset://") {
       data.path = Some(c_path.replace("asset://", ""));
       // data.path = match resolve_path(
@@ -93,7 +86,6 @@ fn setup_mbtiles(
     } else {
       data.path = Some(path.clone().unwrap());
     }
-    println!("data.ath {}", data.path.as_ref().unwrap());
     if !data.path.is_none() {
       let file_path = Path::new(data.path.as_ref().unwrap());
       data.metadata = match get_tile_details(&file_path) {
@@ -118,7 +110,6 @@ fn setup_mbtiles(
   //         }
   //     }
   // }));
-  println!("data.metadata {}", data.path.as_ref().unwrap());
   window
     .emit(
       "mbtiles",
@@ -151,11 +142,6 @@ fn main() {
         .min_inner_size(400.0, 200.0)
         .skip_taskbar(false)
         .fullscreen(false);
-
-      // if let Err(e) = server::run(win) {
-      //     error!("Server error: {}", e);
-      //     std::process::exit(1);
-      // }
       return (win, webview);
     })
     .menu(Menu::with_items([
@@ -230,9 +216,6 @@ fn main() {
         return response.status(404).body(NOT_FOUND.into());
       }
       let tile_meta = data.metadata.as_ref().unwrap();
-
-      println!("request.uri() {}", request.uri());
-
       match TILE_URL_RE.captures(request.uri()) {
         Some(matches) => {
           // let tile_path = matches.name("tile_path").unwrap().as_str();
@@ -245,40 +228,19 @@ fn main() {
             "pbf" => match get_tile_data(&tile_meta.connection_pool.get().unwrap(), z, x, y) {
               Ok(data) => {
                 let data_in_format = get_data_format(&data);
-
-                // // Create a temporary file.
-                // let temp_directory = env::temp_dir();
-                // let temp_file = temp_directory.join(format!("tile.{}.{}.{}.pbf", z, x, y));
-                // let temp_file_path = String::from(temp_file.clone().as_path().to_string_lossy());
-
-                // // Open a file in write-only (ignoring errors).
-                // // This creates the file if it does not exist (and empty the file if it exists).
-                // let mut file = File::create(temp_file).unwrap();
-
-                // // Write a &str in the file (ignoring the result).
-                // file.write(&data);
-                println!(
-                  "pbf {} {}",
-                  request.uri(),
-                  data_in_format.content_encoding(),
-                  // temp_file_path
-                );
                 match data_in_format {
                   DataFormat::Gzip => Ok(
                     response
-                      .header(CONTENT_TYPE, DataFormat::Pbf.content_type())
-                      .header(CONTENT_ENCODING, data_in_format.content_encoding())
-                      .status(200)
+                      .mimetype(DataFormat::Pbf.content_type())
                       .header("Access-Control-Allow-Origin", "*")
-                      .body(data)
+                      .body(decode(data, data_in_format).unwrap())
                       .unwrap(),
                   ),
                   _ => Ok(
                     response
                       .header(CONTENT_TYPE, DataFormat::Pbf.content_type())
                       .header("Access-Control-Allow-Origin", "*")
-                      .header(CONTENT_ENCODING, DataFormat::Gzip.format())
-                      .body(encode(&data))
+                      .body(data)
                       .unwrap(),
                   ),
                 }
@@ -311,16 +273,11 @@ fn main() {
                       "mbtiles://{}/tiles/{{z}}/{{x}}/{{y}}.{}",
                       tile_path,
                       tile_meta.tile_format.format(),
-                      // query_string
                   )],
                   "tilejson": tile_meta.tilejson,
                   "scheme": tile_meta.scheme,
                   "id": tile_meta.id,
                   "format": tile_meta.tile_format,
-                  // "grids": tile_meta.grid_format.map(|_| vec![format!(
-                  //     "{}/{}/tiles/{{z}}/{{x}}/{{y}}.json{}",
-                  //     base_url, tile_name, query_string
-                  // )]),
                   "bounds": tile_meta.bounds,
                   "center": tile_meta.center,
                   "minzoom": tile_meta.minzoom,
