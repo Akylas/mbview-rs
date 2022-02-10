@@ -8,6 +8,8 @@ body {
   overflow: hidden;
   position: fixed;
 }
+
+
 .map {
   height: 100%;
   width: 100%;
@@ -17,4 +19,36 @@ body {
   height: 100%;
   width: 100%;
   position: absolute !important;
+}
+.mbview_popup {
+  color: #333;
+  display: table;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 10px;
+}
+
+.mbview_feature:not(:last-child) {
+  border-bottom: 1px solid #ccc;
+}
+
+.mbview_layer:before {
+  content: '#';
+}
+
+.mbview_layer {
+  display: block;
+  font-weight: bold;
+}
+
+.mbview_property {
+  display: table-row;
+}
+
+.mbview_property-value {
+  display: table-cell;
+}
+
+.mbview_property-name {
+  display: table-cell;
+  padding-right: 10px;
 }
