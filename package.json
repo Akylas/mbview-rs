@@ -1,0 +1,57 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "tauri dev",
+    "dev:web": "vite",
+    "tauri": "tauri",
+    "build": "tauri build",
+    "build:web": "vite build",
+    "test": "cargo test --manifest-path ./src-tauri/Cargo.toml",
+    "format": "prettier --write --plugin-search-dir=. src *.js && eslint --fix src *.js",
+    "check": "cargo check --manifest-path src-tauri/Cargo.toml && eslint src *.js && svelte-check"
+  },
+  "devDependencies": {
+    "@smui-extra/autocomplete": "^6.0.0-beta.13",
+    "@smui/checkbox": "^6.0.0-beta.13",
+    "@smui/circular-progress": "^6.0.0-beta.13",
+    "@smui/common": "^6.0.0-beta.13",
+    "@smui/dialog": "^6.0.0-beta.13",
+    "@smui/drawer": "^6.0.0-beta.13",
+    "@smui/icon-button": "^6.0.0-beta.13",
+    "@smui/list": "^6.0.0-beta.13",
+    "@smui/menu": "^6.0.0-beta.13",
+    "@smui/menu-surface": "^6.0.0-beta.13",
+    "@smui/slider": "^6.0.0-beta.13",
+    "@smui/snackbar": "^6.0.0-beta.13",
+    "@smui/switch": "^6.0.0-beta.13",
+    "@smui/textfield": "^6.0.0-beta.13",
+    "@sveltejs/vite-plugin-svelte": "1.0.0-next.36",
+    "@tauri-apps/api": "1.0.0-beta.8",
+    "@tauri-apps/cli": "1.0.0-beta.10",
+    "@typescript-eslint/eslint-plugin": "^5.10.2",
+    "@typescript-eslint/parser": "^5.10.2",
+    "eslint": "^8.8.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-svelte3": "^3.4.0",
+    "prettier": "^2.5.1",
+    "prettier-plugin-svelte": "^2.6.0",
+    "sass": "^1.49.7",
+    "svelte": "^3.46.3",
+    "svelte-check": "^2.4.1",
+    "svelte-preprocess": "^4.10.2",
+    "typescript": "^4.5.5",
+    "vite": "^2.7.13"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "semi": true,
+    "singleQuote": true
+  },
+  "dependencies": {
+    "@fragaria/address-formatter": "^2.7.0",
+    "lottie-web": "^5.8.1",
+    "maplibre-gl": "^2.1.1",
+    "randomcolor": "^0.6.2",
+    "svelte-material-ui": "^6.0.0-beta.13"
+  }
+}

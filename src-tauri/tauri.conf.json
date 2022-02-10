@@ -1,0 +1,63 @@
+{
+  "package": {
+    "productName": "MBTiles Viewer"
+  },
+  "build": {
+    "distDir": "../build",
+    "devPath": "http://localhost:3000",
+    "beforeDevCommand": "npm run dev:web",
+    "beforeBuildCommand": "npm run build:web"
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "targets": [
+        "app",
+        "msi"
+      ],
+      "identifier": "com.akylas.gpsmocker",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "resources": ["../resources/*"],
+      "externalBin": [],
+      "copyright": "© 2021 Akylas",
+      "category": "DeveloperTool",
+      "shortDescription": "",
+      "longDescription": "",
+      "deb": {
+        "depends": [],
+        "useBootstrapper": false
+      },
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "10.13",
+        "useBootstrapper": false,
+        "exceptionDomain": "",
+        "signingIdentity": null,
+        "entitlements": null
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "updater": {
+      "active": false
+    },
+    "allowlist": {
+      "all": false,
+      "shell":{
+        "execute":true
+      }
+    },
+    "security": {
+      "csp": "default-src blob: data: filesystem: ws: wss: asset: mbtiles: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
+    }
+  }
+}
