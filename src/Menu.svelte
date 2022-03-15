@@ -1,184 +1,212 @@
 <script lang="ts">
+  import Drawer, { AppContent, Content, Header, Title, Subtitle, Scrim } from '@smui/drawer';
+  import List, { Item, Text, Graphic, Meta, Separator, Subheader } from '@smui/list';
+  import FormField from '@smui/form-field';
+  import Switch from '@smui/switch';
+  import Radio from '@smui/radio';
+  import { H6 } from '@smui/common/elements';
   export let layers;
+  export let sources;
   export let map;
   export let wantPopup;
   export let wantTileBounds;
-  let menuBtn;
+  export let drawerOpened;
   let menu;
-  function switchSourceLayersVisibility(sid, layerIds) {
-    const visible = menu.querySelector(`#show-source-${sid.replace(/\./g, '-')}`).checked;
+
+  let layersVisibility = {};
+  let sourcesVisibility = {};
+  function switchSourceLayersVisibility(event, sid, layerIds) {
+    const visible = event.detail.selected;
+    sourcesVisibility[sid] = visible;
     Object.keys(layers.colors).forEach((layerId) => {
-      menu.querySelector(`#show-layer-${layerId}`).checked = visible;
+      // layersVisibility[layerId] =
+      //   menu.querySelector(`#show-layer-${layerId}`).checked = visible;
       applyLayerVisibility(layerId, visible);
     });
   }
 
-  function applyLayerVisibility(layerId, visible) {
-    if (showingLayers.polygons === 'visible') {
-      layers.polygons
-        .filter((s) => s.startsWith(layerId + '-'))
-        .forEach((l) => {
-          map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none');
-        });
-    }
+  function applyLayerVisibility(layerId, sourceVisible) {
+    const visible = sourceVisible && (layersVisibility[layerId] ?? true);
+    // if (showingLayers.polygons === 'visible') {
+    layers.polygons
+      .filter((s) => s.startsWith(layerId + '-'))
+      .forEach((l) => {
+        map.setLayoutProperty(l, 'visibility', visible ? showingLayers.polygons : 'none');
+      });
+    // }
 
-    if (showingLayers.lines === 'visible') {
-      layers.lines
-        .filter((s) => s.startsWith(layerId + '-'))
-        .forEach((l) => {
-          map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none');
-        });
-    }
-    if (showingLayers.pts === 'visible') {
-      layers.pts
-        .filter((s) => s.startsWith(layerId + '-'))
-        .forEach((l) => {
-          map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none');
-        });
-    }
+    // if (showingLayers.lines === 'visible') {
+    layers.lines
+      .filter((s) => s.startsWith(layerId + '-'))
+      .forEach((l) => {
+        map.setLayoutProperty(l, 'visibility', visible ? showingLayers.lines : 'none');
+      });
+    // }
+    // if (showingLayers.points === 'visible') {
+    layers.points
+      .filter((s) => s.startsWith(layerId + '-'))
+      .forEach((l) => {
+        map.setLayoutProperty(l, 'visibility', visible ? showingLayers.points : 'none');
+      });
+    // }
   }
-  function switchLayerVisibility(layerId) {
-    const visible = menu.querySelector(`#show-layer-${layerId}`).checked;
-    applyLayerVisibility(layerId, visible);
-  }
-
-  function updateLayersColors() {
-    Object.keys(layers.colors).forEach((layerId) => {
-      menu.querySelector(
-        `#show-layer-${layerId}`
-      ).parentElement.style.border = `4px solid ${layers.colors[layerId]}`;
-    });
+  function switchLayerVisibility(event, sid, layerId) {
+    layersVisibility[layerId] = event.detail.selected;
+    // const visible = menu.querySelector(`#show-layer-${layerId}`).checked;
+    applyLayerVisibility(layerId, sourcesVisibility[sid] ?? true);
   }
 
-  menuBtn.addEventListener(
-    'click',
-    function () {
-      popup.remove();
-      if (menuBtn.className.indexOf('active') > -1) {
-        //Hide Menu
-        menuBtn.className = '';
-        menu.style.display = 'none';
-      } else {
-        //Show Menu
-        menuBtn.className = 'active';
-        menu.style.display = 'block';
-      }
-    },
-    false
-  );
+  //   function updateLayersColors() {
+  //     Object.keys(layers.colors).forEach((layerId) => {
+  //       menu.querySelector(
+  //         `#show-layer-${layerId}`
+  //       ).parentElement.style.border = `4px solid ${layers.colors[layerId]}`;
+  //     });
+  //   }
 
   let showingLayers = {
-    pts: 'visible',
+    points: 'visible',
     lines: 'visible',
     polygons: 'visible',
   };
 
+  $: {
+    if (layers) {
+      layersVisibility = {};
+      showingLayers = {
+        points: 'visible',
+        lines: 'visible',
+        polygons: 'visible',
+      };
+    }
+  }
+  $: {
+    if (sources) {
+      sourcesVisibility = {};
+    }
+  }
+
+  let filter = 'all';
   //Menu-Filter Module
-  function menuFilter() {
-    if (document.querySelector('#filter-all').checked) {
-      showingLayers.pts = 'visible';
-      showingLayers.lines = 'visible';
-      showingLayers.polygons = 'visible';
-    } else if (document.querySelector('#filter-pts').checked) {
-      showingLayers.pts = 'visible';
-      showingLayers.lines = 'none';
-      showingLayers.polygons = 'none';
-    } else if (document.querySelector('#filter-lines').checked) {
-      showingLayers.pts = 'none';
-      showingLayers.lines = 'visible';
-      showingLayers.polygons = 'none';
-    } else if (document.querySelector('#filter-polygons').checked) {
-      showingLayers.pts = 'none';
-      showingLayers.lines = 'none';
-      showingLayers.polygons = 'visible';
+  $: {
+    switch (filter) {
+      case 'all':
+        showingLayers.points = 'visible';
+        showingLayers.lines = 'visible';
+        showingLayers.polygons = 'visible';
+        break;
+      case 'points':
+        showingLayers.points = 'visible';
+        showingLayers.lines = 'none';
+        showingLayers.polygons = 'none';
+        break;
+      case 'lines':
+        showingLayers.points = 'none';
+        showingLayers.lines = 'visible';
+        showingLayers.polygons = 'none';
+        break;
+      case 'polygons':
+        showingLayers.points = 'none';
+        showingLayers.lines = 'none';
+        showingLayers.polygons = 'visible';
+        break;
     }
-    Object.keys(showingLayers).forEach((k) => {
-      paint(k, layers[k], showingLayers[k]);
+    Object.keys(layers).forEach((k) => {
+      if (k !== 'colors') {
+        paint(k, layers[k], filter);
+      }
     });
+  }
 
-    function paint(type, layers, val) {
-      layers.forEach(function (layerMapId) {
-        // visibility is val or 'none' if layer is hidden
-        const layerId = layerMapId.split('-' + type)[0];
-        const visible = menu.querySelector(`#show-layer-${layerId}`).checked;
-        map.setLayoutProperty(layerMapId, 'visibility', visible ? val : 'none');
-      });
+  function paint(type, layers, val) {
+    layers.forEach(function (layerMapId) {
+      // visibility is val or 'none' if layer is hidden
+      const layerId = layerMapId.split('-' + type)[0];
+      //   const visible = menu.querySelector(`#show-layer-${layerId}`).checked;
+      const visible =
+        (sourcesVisibility[sources[0].id] ?? true) && (layersVisibility[layerId] ?? true);
+      map.setLayoutProperty(
+        layerMapId,
+        'visibility',
+        visible && (val === 'all' || val === type) ? 'visible' : 'none'
+      );
+    });
+  }
+  $: {
+    if (map) {
+      map.showTileBoundaries = wantTileBounds;
     }
   }
-
-  function menuPopup(event) {
-    wantPopup = document.querySelector('#show-popup').checked;
-  }
-
-  function menuTiles() {
-    wantTileBounds = document.querySelector('#show-tiles').checked;
-    map.showTileBoundaries = wantTileBounds;
-  }
+  // $: {
+  //   console.log('sources', sources);
+  // }
 </script>
 
-<div>
-  <div id="menu" bind:this={menuBtn}><span class="icon menu big" /></div>
-
-  <div id="menu-container" bind:this={menu}>
-    <h4>Filter</h4>
-    <div id="menu-filter" on:change={() => menuFilter()} class="rounded-toggle short inline">
-      <input id="filter-all" type="radio" name="rtoggle" value="all" checked="{false}" />
-      <label for="filter-all">all</label>
-      <input id="filter-polygons" type="radio" name="rtoggle" value="polygons" />
-      <label for="filter-polygons">polygons</label>
-      <input id="filter-lines" type="radio" name="rtoggle" value="lines" />
-      <label for="filter-lines">lines</label>
-      <input id="filter-pts" type="radio" name="rtoggle" value="pts" />
-      <label for="filter-pts">points</label>
-    </div>
-    <h4>Popup</h4>
-    <div on:change={menuPopup} class="rounded-toggle short inline">
-      <input id="show-popup" type="checkbox" name="ptoggle" checked="{true}" />
-      <label for="show-popup">show attributes</label>
-    </div>
-    <h4>Tiles</h4>
-    <div on:change={menuTiles} class="rounded-toggle short inline">
-      <input id="show-tiles" type="checkbox" name="ttoggle" checked="{true}" />
-      <label for="show-tiles">show tile boundaries</label>
-    </div>
-    <!-- <% Object.keys(sources).forEach(sid=>renderSource(sid, sources[sid])) %> -->
-  </div>
-</div>
+<Drawer class="drawer" variant="dismissible" fixed={true} open={true}>
+  <Content class="drawer-content" bind:this={menu}>
+    {#if sources.length > 0}
+      <Subheader component={H6}>Filter</Subheader>
+      {#each ['all', 'polygons', 'lines', 'points'] as option}
+        <FormField>
+          <Radio bind:group={filter} value={option} />
+          <span slot="label">
+            {option}
+          </span>
+        </FormField>
+      {/each}
+      <Separator />
+      <FormField>
+        <Switch bind:checked={wantPopup} />
+        <span slot="label">Show Attributes popup</span>
+      </FormField>
+    {/if}
+    <FormField>
+      <Switch bind:checked={wantTileBounds} />
+      <span slot="label">Show tile boundaries</span>
+    </FormField>
+    <Separator />
+    {#each sources as source}
+      <Item style="margin:0px;height:80px;">
+        <Header>
+          <Title>{source.name}</Title>
+          <Subtitle>{source.id}</Subtitle>
+        </Header>
+        <Meta>
+          <Switch
+            checked={true}
+            on:SMUISwitch:change={(event) =>
+              switchSourceLayersVisibility(
+                event,
+                source.id,
+                source.vector_layers.map((l) => "'" + l.id + "'")
+              )}
+          />
+        </Meta>
+      </Item>
+      <Content>
+        <List>
+          {#each source.vector_layers.sort( (a, b) => (a.id > b.id ? 1 : b.id > a.id ? -1 : 0) ) as layer}
+            <Item>
+              <FormField>
+                <Switch
+                  class="colored-switch"
+                  checked={true}
+                  --mdc-switch-selected-track-color={layers.colors[layer.id]}
+                  --mdc-switch-hover-track-color={layers.colors[layer.id]}
+                  --mdc-switch-handle-surface-color={layers.colors[layer.id]}
+                  --mdc-switch-selected-handle-color={layers.colors[layer.id]}
+                  --mdc-switch-hover-handle-color={layers.colors[layer.id]}
+                  on:SMUISwitch:change={(e) => switchLayerVisibility(e, source.id, layer.id)}
+                />
+                <span slot="label">{layer.id}</span>
+              </FormField>
+            </Item>
+          {/each}
+        </List>
+      </Content>
+    {/each}
+  </Content>
+</Drawer>
 
 <style>
-    #menu {
-      position: absolute;
-      top:10px;
-      right:10px;
-      z-index: 1;
-      color: white;
-      cursor: pointer;
-    }
-    #menu-container {
-      position: absolute;
-      display: none;
-      top: 50px;
-      right: 10px;
-      max-height: 90%;
-      z-index: 1;
-      background-color: white;
-      overflow: auto;
-      padding: 20px;
-    }
-    .icon.big                     { line-height:40px; }
-    .icon:not(.big):before        { margin-right:5px; }
-    .icon:empty:before            { margin:0; }
-    .icon.menu:before {
-      content: "\e964";
-    }
-    
-    menu {
-      margin:0;
-      padding:0;
-      border:0;
-      font-size:100%;
-      font:inherit;
-      vertical-align:baseline;
-      display:block;
-      } */
 </style>

@@ -4,6 +4,9 @@ import sveltePreprocess from 'svelte-preprocess'
 
 const ignoreWarnings = new Set(['a11y-no-onchange', 'a11y-label-has-associated-control', 'a11y-mouse-events-have-key-events', 'a11y-mouse-events-have-key-events']);
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const config = require('./package.json');
+
 export default defineConfig({
   root: './src',
   base: './', // use relative paths
@@ -33,6 +36,7 @@ export default defineConfig({
     }),
   ],
   define: {
+    REPO_URL: `"${config.homepage}"`,
     FORCE_MOBILE:false,
     EXTERNAL_APP:false
   }

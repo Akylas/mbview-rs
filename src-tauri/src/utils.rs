@@ -1,8 +1,8 @@
 use std::io::prelude::*;
 
 use flate2::read::{GzDecoder, ZlibDecoder};
-use flate2::write::GzEncoder;
-use flate2::Compression;
+// use flate2::write::GzEncoder;
+// use flate2::Compression;
 
 use serde::{Deserialize, Serialize};
 
@@ -59,14 +59,14 @@ impl DataFormat {
     }
   }
 
-  pub fn content_encoding(&self) -> &str {
-    match *self {
-      DataFormat::Gzip => "gzip",
-      DataFormat::Zlib => "deflate",
-      DataFormat::Br => "br",
-      _ => "",
-    }
-  }
+  // pub fn content_encoding(&self) -> &str {
+  //   match *self {
+  //     DataFormat::Gzip => "gzip",
+  //     DataFormat::Zlib => "deflate",
+  //     DataFormat::Br => "br",
+  //     _ => "",
+  //   }
+  // }
 }
 
 pub fn decode(data: Vec<u8>, data_type: DataFormat) -> Result<Vec<u8>> {
@@ -87,11 +87,11 @@ pub fn decode(data: Vec<u8>, data_type: DataFormat) -> Result<Vec<u8>> {
     }
 }
 
-pub fn encode(data: &[u8]) -> Vec<u8> {
-  let mut e = GzEncoder::new(Vec::new(), Compression::default());
-  e.write_all(data).unwrap();
-  e.finish().unwrap()
-}
+// pub fn encode(data: &[u8]) -> Vec<u8> {
+//   let mut e = GzEncoder::new(Vec::new(), Compression::default());
+//   e.write_all(data).unwrap();
+//   e.finish().unwrap()
+// }
 
 pub fn get_data_format(data: &[u8]) -> DataFormat {
   match data {

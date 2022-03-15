@@ -9,11 +9,37 @@ body {
   position: fixed;
 }
 
+/* fallback */
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url(./material-icons.woff2) format('woff2');
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
 
 .map {
+  /* flex:auto; */
+  /* flex-grow: 1; */
   height: 100%;
   width: 100%;
-  position: absolute !important;
+  /* position: absolute !important; */
 }
 .container {
   height: 100%;
@@ -51,4 +77,71 @@ body {
 .mbview_property-name {
   display: table-cell;
   padding-right: 10px;
+}
+
+
+#app-content {
+  flex: auto;
+    overflow: hidden;
+    position: relative;
+    flex-grow: 1;
+}
+
+.drawer-content {
+  padding: 0px;
+  overflow: hidden !important;
+}
+#menu {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  color: white;
+  cursor: pointer;
+}
+#menu-container {
+  position: absolute;
+  display: none;
+  top: 50px;
+  right: 10px;
+  max-height: 90%;
+  z-index: 1;
+  background-color: white;
+  overflow: auto;
+  padding: 20px;
+}
+.icon.big {
+  line-height: 40px;
+}
+.icon:not(.big):before {
+  margin-right: 5px;
+}
+.icon:empty:before {
+  margin: 0;
+}
+.icon.menu:before {
+  content: '\e964';
+}
+
+.drawer-container {
+  position: absolute;
+  display:flex;
+  justify-content: flex-end;
+  min-width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+#container {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 100%;
+  font: inherit;
+  vertical-align: baseline;
+  display: block;
+}
+
+
+.mdc-switch__handle::after{
+  background: green;
 }

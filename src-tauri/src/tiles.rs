@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, OpenFlags};
@@ -44,11 +45,11 @@ pub struct TileSummaryJSON {
   pub url: String,
 }
 
-#[derive(Deserialize)]
-struct UTFGridKeys {
-  pub grid: Vec<String>,
-  pub keys: Vec<String>,
-}
+// #[derive(Deserialize)]
+// struct UTFGridKeys {
+//   pub grid: Vec<String>,
+//   pub keys: Vec<String>,
+// }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -57,6 +58,67 @@ pub struct UTFGrid {
   pub grid: Vec<String>,
   pub keys: Vec<String>,
 }
+
+#[derive(Clone, Debug)]
+struct TilesetsData {
+  pub data: Option<TileMeta>,
+  pub path: PathBuf,
+}
+
+#[derive(Clone, Debug)]
+pub struct Tilesets {
+  data: Arc<Mutex<TilesetsData>>,
+}
+impl Tilesets {
+  pub fn new(data: Option<TileMeta>, path: PathBuf) -> Tilesets {
+    Tilesets {
+      data: Arc::new(Mutex::new(TilesetsData { data, path })),
+    }
+  }
+  pub fn get_data(&self) -> Option<TileMeta> {
+    self.data.lock().unwrap().data.clone()
+  }
+  // pub fn get_tiledata_format(&self) -> Option<DataFormat> {
+  //   let metadata = self.data.lock().unwrap().data.clone();
+  //   if metadata.is_none() {
+  //     return None;
+  //   }
+  //   return Some(metadata.unwrap().tile_format);
+  // }
+  pub fn get_path(&self) -> PathBuf {
+    self.data.lock().unwrap().path.clone()
+  }
+  pub fn set_path(&self, path: PathBuf) {
+    println!(
+      "set_path {}",
+      path.clone().into_os_string().into_string().unwrap()
+    );
+    let mut data = self.data.lock().unwrap();
+    data.path = path;
+    data.data = match get_tile_details(&data.path) {
+      Ok(tile_meta) => Some(tile_meta),
+      Err(_) => None,
+    };
+  }
+
+  // pub fn reload(&self) {
+  //   let mut data = self.data.lock().unwrap();
+  //   println!(
+  //     "reload {}",
+  //     data.path.clone().into_os_string().into_string().unwrap()
+  //   );
+  //   data.data = match get_tile_details(&data.path) {
+  //     Ok(tile_meta) => Some(tile_meta),
+  //     Err(err) => None,
+  //   };
+  // }
+}
+
+// impl Clone for Tilesets {
+//   fn clone(&self) -> Tilesets {
+//       *self
+//   }
+// }
 
 pub fn get_data_format_via_query(
   tile_name: &str,
@@ -168,17 +230,20 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
   Ok(metadata)
 }
 
-// pub fn add_to_tilesets(path: PathBuf) ->
-// Tilesets {
-//     match get_tile_details(&p, file_name) {
-//         Ok(tile_meta) => tiles.insert(parent_dir_cloned, tile_meta),
-//         Err(err) => {
-//             // warn!("{}", err);
-//             None
-//         }
-//     };
-//     Tilesets::new(tiles, path)
-// }
+pub fn create_tilesets(path: Option<PathBuf>) -> Tilesets {
+  if path.is_none() {
+    return Tilesets::new(None, PathBuf::from(""));
+  } else {
+    let the_path = path.unwrap().clone();
+    return Tilesets::new(
+      match get_tile_details(&the_path) {
+        Ok(tile_meta) => Some(tile_meta),
+        Err(_) => None,
+      },
+      the_path,
+    );
+  }
+}
 
 // pub fn discover_tilesets(parent_dir: String, path: PathBuf) -> Tilesets {
 //     // Walk through the given path and its subfolders, find all valid mbtiles and create and return a map of mbtiles file names to their absolute path
@@ -207,22 +272,22 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
 //     Tilesets::new(tiles, path)
 // }
 
-fn get_grid_info(tile_name: &str, connection: &Connection) -> Option<DataFormat> {
-  let mut statement = connection.prepare(r#"SELECT count(*) FROM sqlite_master WHERE name IN ('grids', 'grid_data', 'grid_utfgrid', 'keymap', 'grid_key')"#).unwrap();
-  let count: u8 = statement
-    .query_row([], |row| Ok(row.get(0).unwrap()))
-    .unwrap();
-  if count == 5 {
-    match get_data_format_via_query(tile_name, connection, "grid") {
-      Ok(grid_format) => return Some(grid_format),
-      Err(err) => {
-        // warn!("{}", err);
-        return None;
-      }
-    };
-  }
-  None
-}
+// fn get_grid_info(tile_name: &str, connection: &Connection) -> Option<DataFormat> {
+//   let mut statement = connection.prepare(r#"SELECT count(*) FROM sqlite_master WHERE name IN ('grids', 'grid_data', 'grid_utfgrid', 'keymap', 'grid_key')"#).unwrap();
+//   let count: u8 = statement
+//     .query_row([], |row| Ok(row.get(0).unwrap()))
+//     .unwrap();
+//   if count == 5 {
+//     match get_data_format_via_query(tile_name, connection, "grid") {
+//       Ok(grid_format) => return Some(grid_format),
+//       Err(err) => {
+//         // warn!("{}", err);
+//         return None;
+//       }
+//     };
+//   }
+//   None
+// }
 
 // pub fn get_grid_data(
 //   connection: &Connection,

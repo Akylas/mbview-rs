@@ -11,7 +11,7 @@ pub type Result<T> = StdResult<T, Error>;
 pub enum Error {
     DBConnection(DBError),
     Pool(R2D2Error),
-    Config(String),
+    // Config(String),
     MissingTable(String),
     InvalidDataFormat(String),
     InvalidDataFormatQueryCategory(String),
@@ -21,7 +21,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::Config(message) => write!(f, "{}", message),
+            // Error::Config(message) => write!(f, "{}", message),
             Error::MissingTable(tile_name) => {
                 write!(f, "Missing tiles or metadata tables: {}", tile_name)
             }

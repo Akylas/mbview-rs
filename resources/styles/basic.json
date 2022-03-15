@@ -7,7 +7,7 @@
     "sources":{
       "openmaptiles":{
         "type":"vector",
-        "url":"mbtiles://test/tiles.json"
+        "url":"{{json_url}}"
       }
     },
     "glyphs":"asset://../../../resources/styles/fonts/{fontstack}/{range}.pbf",

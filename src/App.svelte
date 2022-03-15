@@ -1,26 +1,53 @@
 <script lang="ts">
-  import { open } from '@tauri-apps/api/dialog';
-  import { onDestroy, onMount } from 'svelte';
+  import { Icon } from '@smui/common';
+  import { AppContent,Title } from '@smui/drawer';
+  import Fab from '@smui/fab';
   import { invoke } from '@tauri-apps/api';
-  import { Map, Popup } from 'maplibre-gl';
+  import { open } from '@tauri-apps/api/dialog';
+  import { listen,UnlistenFn } from '@tauri-apps/api/event';
+  import { readTextFile } from '@tauri-apps/api/fs';
+  import { resolve,resourceDir } from '@tauri-apps/api/path';
+  import { open as openURl } from '@tauri-apps/api/shell';
+  import * as maplibregl from 'maplibre-gl';
+  import { Map,Popup } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
-  import { resolve, resourceDir } from '@tauri-apps/api/path';
-  import { emit, listen, UnlistenFn } from '@tauri-apps/api/event';
   import { randomColor } from 'randomcolor';
+  import { onDestroy,onMount } from 'svelte';
+  import 'svelte-material-ui/bare.css';
+  import FileDrop from 'svelte-tauri-filedrop';
+  import Menu from './Menu.svelte';
 
   let map: Map;
   let mapContainer;
+  let wantTileBounds = false;
+  let drawerOpened = true;
   let basemap = 'basic';
+  let mapLayers: string[] = [];
+  let mapSources: string[] = [];
+  let unlistener: UnlistenFn;
 
-  const tilesJSON = 'mbtiles://test/tiles.json';
+  let popup = new Popup({
+    closeButton: false,
+    closeOnClick: false,
+  });
+
+  let layers = {
+    points: [],
+    lines: [],
+    polygons: [],
+    colors: {},
+  };
+  let sources = [];
+  let wantPopup = true;
+
+  const tilesJSON = 'http://localhost:9782/test/tiles.json';
   // const tilesJSON = 'http://localhost:8082/data/data.json';
 
-  let unlistener: UnlistenFn;
   onMount(async () => {
     // const styleSrc = await resolve(await resourceDir(), '../resources/styles/streets.json');
     // console.log('test', styleSrc)
-    unlistener = await listen<{ message: string }>('mbtiles', (event) => {
-      onMBTilesSet(event.payload.message);
+    unlistener = await listen<{ path: string; json_url: string }>('mbtiles', (event) => {
+      onMBTilesSet(event.payload);
     });
     try {
       invoke('setup_mbtiles', {
@@ -35,8 +62,6 @@
   onDestroy(() => {
     unlistener();
   });
-  let mapLayers: string[] = [];
-  let mapSources: string[] = [];
 
   function brightColor(layerId, alpha?) {
     let luminosity = 'bright';
@@ -119,9 +144,9 @@
     });
   }
   function addPointLayer(id: string, layerColor, layers) {
-    let layerId = `${id}-pts`;
+    let layerId = `${id}-points`;
     mapLayers.push(layerId);
-    layers.pts.push(layerId);
+    layers.points.push(layerId);
     map.addLayer({
       id: layerId,
       type: 'circle',
@@ -210,21 +235,8 @@
     return '<div class="mbview_popup">' + renderFeatures(features) + '</div>';
   }
 
-  var popup = new Popup({
-    closeButton: false,
-    closeOnClick: false,
-  });
-
-  let layers = {
-    pts: [],
-    lines: [],
-    polygons: [],
-    colors: {},
-  };
-  let wantPopup = true;
-
-  async function onMBTilesSet(mbtilesPath) {
-    console.log('onMBTilesSet', mbtilesPath);
+  async function onMBTilesSet({ path, json_url }: { path: string; json_url: string }) {
+    // console.log('onMBTilesSet', path, json_url);
     if (map) {
       // mapLayers.forEach((i) => map.removeLayer(i));
       // mapSources.forEach((i) => map.removeSource(i));
@@ -236,62 +248,116 @@
     }
     mapSources = [];
     mapLayers = [];
+    sources = [];
 
-    if (mbtilesPath) {
-      let result = await (await fetch(tilesJSON)).json();
-      console.log('got result2 ', result);
-      map = new Map({
-        container: mapContainer,
-        style: `asset://../resources/styles/${basemap}.json`,
-        center: result.center,
-        zoom: Math.max(result.minzoom, 10),
-        interactive: true,
-      });
-
-      map.on('mousemove', function (e) {
-        if (!layers) {
-          return;
-        }
-        // set a bbox around the pointer
-        var selectThreshold = 3;
-        var queryBox = [
-          [e.point.x - selectThreshold, e.point.y + selectThreshold], // bottom left (SW)
-          [e.point.x + selectThreshold, e.point.y - selectThreshold], // top right (NE)
-        ];
-
-        var features =
-          map.queryRenderedFeatures(queryBox, {
-            layers: layers.polygons.concat(layers.lines.concat(layers.pts)),
-          }) || [];
-        map.getCanvas().style.cursor = features.length ? 'pointer' : '';
-
-        if (!features.length || !wantPopup) {
-          popup.remove();
-        } else {
-          popup.setLngLat(e.lngLat).setHTML(renderPopup(features)).addTo(map);
-        }
-      });
-      map.on('load', () => {
-        mapSources.push('mbtiles');
-        map.addSource('mbtiles', {
-          type: 'vector',
-          url: tilesJSON,
+    if (path) {
+      let result = await (await fetch(json_url)).json();
+      console.log('result', Object.keys(result), result);
+      if (result.vector_layers || result.Layer) {
+        const styleSrc = await resolve(
+          await resourceDir(),
+          `_up_/resources/styles/${basemap}.json`
+        );
+        const style: string = await readTextFile(styleSrc);
+        map = new Map({
+          container: mapContainer,
+          style: JSON.parse(style.replace('{{json_url}}', json_url)),
+          center:
+            result.center ?? result.bounds
+              ? [
+                  result.bounds[0] + (result.bounds[2] - result.bounds[0]) / 2,
+                  result.bounds[3] + (result.bounds[1] - result.bounds[3]) / 2,
+                ]
+              : undefined,
+          zoom: result.minzoom + (result.maxzoom - result.minzoom) / 2,
+          interactive: true,
         });
-        let newLayers = {
-          pts: [],
-          lines: [],
-          polygons: [],
-          colors: {},
-        };
-        result.vector_layers.forEach((l) => {
-          const layerColor = brightColor(l.id);
-          newLayers.colors[l.id] = layerColor;
-          addPolygonLayer(l.id, layerColor, newLayers);
-          addLineLayer(l.id, layerColor, newLayers);
-          addPointLayer(l.id, layerColor, newLayers);
+        map.showTileBoundaries = wantTileBounds;
+        sources.push(result);
+
+        map.on('mousemove', function (e) {
+          if (!layers) {
+            return;
+          }
+          // set a bbox around the pointer
+          var selectThreshold = 3;
+          var queryBox = [
+            [e.point.x - selectThreshold, e.point.y + selectThreshold], // bottom left (SW)
+            [e.point.x + selectThreshold, e.point.y - selectThreshold], // top right (NE)
+          ];
+
+          var features =
+            map.queryRenderedFeatures(queryBox, {
+              layers: layers.polygons.concat(layers.lines.concat(layers.points)),
+            }) || [];
+          map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+
+          if (!features.length || !wantPopup) {
+            popup.remove();
+          } else {
+            popup.setLngLat(e.lngLat).setHTML(renderPopup(features)).addTo(map);
+          }
         });
-        layers = newLayers;
-      });
+
+        map.on('load', () => {
+          mapSources.push('mbtiles');
+          map.addSource('mbtiles', {
+            type: 'vector',
+            url: json_url,
+          });
+          let newLayers = {
+            points: [],
+            lines: [],
+            polygons: [],
+            colors: {},
+          };
+          (result.vector_layers || result.Layer).forEach((l) => {
+            const layerColor = brightColor(l.id);
+            newLayers.colors[l.id] = layerColor;
+            addPolygonLayer(l.id, layerColor, newLayers);
+            addLineLayer(l.id, layerColor, newLayers);
+            addPointLayer(l.id, layerColor, newLayers);
+          });
+          layers = newLayers;
+        });
+      } else {
+        map = new Map({
+          container: mapContainer,
+          style: {
+            version: 8,
+            sources: {
+              'raster-tiles': {
+                type: 'raster',
+                tiles: result.tiles,
+
+                minzoom: result.minzoom,
+                maxzoom: result.maxzoom,
+                attribution: result.attribution || '',
+              },
+            },
+            layers: [
+              {
+                id: 'simple-tiles',
+                type: 'raster',
+                source: 'raster-tiles',
+                minzoom: 0,
+                maxzoom: 24,
+              } as any,
+            ],
+          },
+          center:
+            result.center ?? result.bounds
+              ? [
+                  result.bounds[0] + (result.bounds[2] - result.bounds[0]) / 2,
+                  result.bounds[3] + (result.bounds[1] - result.bounds[3]) / 2,
+                ]
+              : undefined,
+          zoom: result.minzoom + (result.maxzoom - result.minzoom),
+          interactive: true,
+        });
+      }
+
+      map.addControl(new maplibregl.ScaleControl({}), 'bottom-right');
     }
   }
 
@@ -302,7 +368,7 @@
         multiple: false,
         directory: false,
       });
-      console.log('resPath', resPath);
+      // console.log('resPath', resPath);
       await invoke('setup_mbtiles', {
         path: resPath,
       });
@@ -310,14 +376,70 @@
       console.error(error);
     }
   }
+
+  function handleDroppedFile(paths: string[]) {
+    // ...
+    invoke('setup_mbtiles', {
+      path: paths[0],
+    });
+  }
+
+  listen<string>('tauri://menu', ({ payload }) => {
+    // console.log('on menu', payload);
+    switch (payload) {
+      case 'learn_more':
+        openURl(REPO_URL);
+        break;
+    }
+  });
 </script>
 
-<div class="container">
-  <button type="button" id="open-dialog" on:click={selectMBtiles} style="z-index:100;"
-    >Selectionner le fichier</button
-  >
-  <div class="map" id="map" bind:this={mapContainer} />
+<div class="drawer-container">
+  <Menu {layers} {sources} {map} bind:wantPopup bind:wantTileBounds bind:drawerOpened />
+
+  <!-- <Scrim fixed={false} /> -->
+  <AppContent id="app-content">
+    <!-- <IconButton
+      class="material-icons"
+      on:click={() => (drawerOpened = !drawerOpened)}
+      style="position:absolute;z-index:100;">menu</IconButton
+    > -->
+    <FileDrop
+      style="position:absolute;z-index:100;"
+      extensions={['mbtiles', 'etiles']}
+      handleFiles={handleDroppedFile}
+      let:files
+    >
+      <div class="dropzone" class:droppable={files.length > 0}>
+        {#if files.length > 0}
+          <Title>Import Mbtiles : {files[0]}</Title>
+        {/if}
+      </div>
+    </FileDrop>
+    <div style="position:absolute; width:100%;height:100%;display:flex;z-index:100;pointer-events:none;">
+      <Fab color="primary" on:click={selectMBtiles} style="align-self:flex-end;margin: 20px;">
+        <Icon class="material-icons">download</Icon>
+      </Fab>
+    </div>
+    <div class="map" id="map" bind:this={mapContainer} />
+  </AppContent>
 </div>
 
 <style>
+  .dropzone {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+    padding: 20px;
+    background: transparent;
+    border: 1 solid #eee;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .droppable {
+    background: #d6dff088;
+  }
 </style>

@@ -13,9 +13,10 @@
       "active": true,
       "targets": [
         "app",
-        "msi"
+        "msi",
+        "deb"
       ],
-      "identifier": "com.akylas.gpsmocker",
+      "identifier": "com.akylas.mbview",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -37,7 +38,7 @@
         "frameworks": [],
         "minimumSystemVersion": "10.13",
         "useBootstrapper": false,
-        "exceptionDomain": "",
+        "exceptionDomain": "localhost",
         "signingIdentity": null,
         "entitlements": null
       },
@@ -52,8 +53,23 @@
     },
     "allowlist": {
       "all": false,
+      "path":{
+        "all":true
+      },
       "shell":{
-        "execute":true
+        "open": true
+      },
+      "fs":{
+        "readFile": true,
+        "scope": {
+          "allow": ["$DOWNLOAD/**", "$RESOURCE/**"]
+        }
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": {
+          "allow": ["**"]
+        }
       }
     },
     "security": {
