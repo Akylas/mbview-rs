@@ -50,9 +50,13 @@
       onMBTilesSet(event.payload);
     });
     try {
+      const mbtiles = await resolve(
+          await resourceDir(),
+          `_up_/resources/world_cities.mbtiles`
+        );
       invoke('setup_mbtiles', {
-        path: '/Volumes/dev/openmaptiles/openmaptiles/data/tiles.mbtiles',
-        // path: 'asset://../resources/world_cities.mbtiles',
+        // path: '/Volumes/dev/openmaptiles/openmaptiles/data/tiles.mbtiles',
+        path: mbtiles,
       });
     } catch (error) {
       console.error(error);
