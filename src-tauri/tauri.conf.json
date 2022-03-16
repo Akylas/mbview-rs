@@ -1,6 +1,6 @@
 {
   "package": {
-    "productName": "MBTiles Viewer"
+    "productName": "MBTilesViewer"
   },
   "build": {
     "distDir": "../build",
