@@ -39,7 +39,7 @@
         "minimumSystemVersion": "10.13",
         "useBootstrapper": false,
         "exceptionDomain": "localhost",
-        "signingIdentity": null,
+        "signingIdentity": "Apple Development: Martin Guillon (4ZZRPWM525)",
         "entitlements": null
       },
       "windows": {
