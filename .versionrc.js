@@ -1,9 +1,11 @@
+console.log('test')
+
 const tracker = {
-    filename: './src-tauri/Cargo.toml',
-    updater: require('./tauriVersioner')
-  }
-  
-  module.exports = {
-    // bumpFiles: [tracker],
-    packageFiles: [tracker]
-  }
+  filename: './src-tauri/Cargo.toml',
+  updater: require('./tauriVersioner')
+}
+
+module.exports = {
+  bumpFiles: [tracker],
+  packageFiles: [tracker]
+}
