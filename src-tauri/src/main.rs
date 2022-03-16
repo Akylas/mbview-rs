@@ -78,7 +78,6 @@ fn setup_mbtiles(
   if path.is_none() {
     return;
   }
-  println!("setup_mbtiles {}", path.clone().unwrap());
   let the_tilesets = tilesets.lock().unwrap();
   the_tilesets.set_path(PathBuf::from(path.unwrap().clone()));
   // if !data.metadata.is_none() {

@@ -89,10 +89,6 @@ impl Tilesets {
     self.data.lock().unwrap().path.clone()
   }
   pub fn set_path(&self, path: PathBuf) {
-    println!(
-      "set_path {}",
-      path.clone().into_os_string().into_string().unwrap()
-    );
     let mut data = self.data.lock().unwrap();
     data.path = path;
     data.data = match get_tile_details(&data.path) {
