@@ -19,8 +19,8 @@ export default defineConfig({
   build: {
     outDir: '../build',
     emptyOutDir: true,
-    minify: false,
-    sourcemap: true,
+    minify: true,
+    sourcemap: false,
     target: 'modules',
   },
   plugins: [
