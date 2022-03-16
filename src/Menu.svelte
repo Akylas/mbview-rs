@@ -10,7 +10,7 @@
   export let map;
   export let wantPopup;
   export let wantTileBounds;
-  export let drawerOpened;
+  // export let drawerOpened;
   let menu;
 
   let layersVisibility = {};
