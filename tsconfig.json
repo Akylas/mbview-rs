@@ -12,6 +12,8 @@
     // To have svelte warnings/errors correct position
     "sourceMap": true,
 
+    "resolveJsonModule": true,
+
     "noImplicitAny": false,
     "strictNullChecks": false,
 

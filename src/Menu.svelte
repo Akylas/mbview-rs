@@ -1,10 +1,11 @@
 <script lang="ts">
-  import Drawer, { AppContent, Content, Header, Title, Subtitle, Scrim } from '@smui/drawer';
-  import List, { Item, Text, Graphic, Meta, Separator, Subheader } from '@smui/list';
-  import FormField from '@smui/form-field';
-  import Switch from '@smui/switch';
-  import Radio from '@smui/radio';
   import { H6 } from '@smui/common/elements';
+  import Drawer, { Content, Header, Subtitle, Title } from '@smui/drawer';
+  import FormField from '@smui/form-field';
+  import List, { Item, Meta, Separator, Subheader } from '@smui/list';
+  import Radio from '@smui/radio';
+  import Switch from '@smui/switch';
+  import { isLoading, _ } from 'svelte-i18n';
   export let layers;
   export let sources;
   export let map;
@@ -140,29 +141,35 @@
   // $: {
   //   console.log('sources', sources);
   // }
-</script>
 
+  const options = [
+    { value: 'all', name: $_('all') },
+    { value: 'polygons', name: $_('polygons') },
+    { value: 'lines', name: $_('lines') },
+    { value: 'points', name: $_('points') },
+  ];
+</script>
 <Drawer class="drawer" variant="dismissible" fixed={true} open={true}>
   <Content class="drawer-content" bind:this={menu}>
     {#if sources.length > 0}
-      <Subheader component={H6}>Filter</Subheader>
-      {#each ['all', 'polygons', 'lines', 'points'] as option}
+      <Subheader component={H6}>{$_('filters')}</Subheader>
+      {#each options as option}
         <FormField>
-          <Radio bind:group={filter} value={option} />
+          <Radio bind:group={filter} value={option.value} />
           <span slot="label">
-            {option}
+            {option.name}
           </span>
         </FormField>
       {/each}
       <Separator />
       <FormField>
         <Switch bind:checked={wantPopup} />
-        <span slot="label">Show Attributes popup</span>
+        <span slot="label">{$_('show_attribute_popup')}</span>
       </FormField>
     {/if}
     <FormField>
       <Switch bind:checked={wantTileBounds} />
-      <span slot="label">Show tile boundaries</span>
+      <span slot="label">{$_('show_tile_boundaries')}</span>
     </FormField>
     <Separator />
     {#each sources as source}

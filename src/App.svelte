@@ -16,6 +16,7 @@
   import 'svelte-material-ui/bare.css';
   import FileDrop from 'svelte-tauri-filedrop';
   import Menu from './Menu.svelte';
+  import { _, isLoading } from 'svelte-i18n';
 
   let map: Map;
   let mapContainer;
@@ -390,7 +391,6 @@
   }
 
   listen<string>('tauri://menu', ({ payload }) => {
-    // console.log('on menu', payload);
     switch (payload) {
       case 'learn_more':
         openURl(REPO_URL);
@@ -400,7 +400,7 @@
 </script>
 
 <div class="drawer-container">
-  <Menu {layers} {sources} {map} bind:wantPopup bind:wantTileBounds bind:drawerOpened />
+  <Menu {layers} {sources} {map} bind:wantPopup bind:wantTileBounds />
 
   <!-- <Scrim fixed={false} /> -->
   <AppContent id="app-content">
@@ -424,12 +424,16 @@
     <div
       style="position:absolute; width:100%;height:100%;display:flex;z-index:100;pointer-events:none;"
     >
-      <Fab color="primary" on:click={selectMBtiles} style="align-self:flex-end;margin: 20px;pointer-events:auto;">
+      <Fab
+        color="primary"
+        on:click={selectMBtiles}
+        style="align-self:flex-end;margin: 20px;pointer-events:auto;"
+      >
         <Icon class="material-icons">download</Icon>
       </Fab>
     </div>
     {#if !currentMbTiles}
-      <label id="no_mbtiles">drop or open a MBtiles</label>
+      <Title id="no_mbtiles">{$_('drop_open_mbtiles')}</Title>
     {/if}
     <div class="map" id="map" bind:this={mapContainer} />
   </AppContent>

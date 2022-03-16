@@ -1,0 +1,11 @@
+{
+  "all": "Tous",
+  "download": "Téléchargement",
+  "drop_open_mbtiles": "déposer ou ouvrir un Motiles",
+  "filters": "filtres",
+  "lines": "lignes",
+  "points": "points",
+  "polygons": "polygones",
+  "show_attribute_popup": "Afficher Attributs popup",
+  "show_tile_boundaries": "Afficher les limites des carreaux"
+}

@@ -1,4 +1,6 @@
 import { defineConfig } from 'vite'
+import { readdirSync } from 'fs'
+import { join } from 'path'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import sveltePreprocess from 'svelte-preprocess'
 
@@ -6,6 +8,10 @@ const ignoreWarnings = new Set(['a11y-no-onchange', 'a11y-label-has-associated-c
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('./package.json');
+
+const locales = readdirSync(join('src', 'i18n'))
+        .filter((s) => s.endsWith('.json'))
+        .map((s) => s.replace('.json', ''));
 
 export default defineConfig({
   root: './src',
@@ -36,6 +42,7 @@ export default defineConfig({
     }),
   ],
   define: {
+    SUPPORTED_LOCALES: JSON.stringify(locales),
     REPO_URL: `"${config.homepage}"`,
     FORCE_MOBILE:false,
     EXTERNAL_APP:false
