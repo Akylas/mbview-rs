@@ -1,18 +1,18 @@
 <script lang="ts">
   import { Icon } from '@smui/common';
-  import { AppContent,Title } from '@smui/drawer';
+  import { AppContent, Title } from '@smui/drawer';
   import Fab from '@smui/fab';
   import { invoke } from '@tauri-apps/api';
   import { open } from '@tauri-apps/api/dialog';
-  import { listen,UnlistenFn } from '@tauri-apps/api/event';
+  import { listen, UnlistenFn } from '@tauri-apps/api/event';
   import { readTextFile } from '@tauri-apps/api/fs';
-  import { resolve,resourceDir } from '@tauri-apps/api/path';
+  import { resolve, resourceDir } from '@tauri-apps/api/path';
   import { open as openURl } from '@tauri-apps/api/shell';
   import * as maplibregl from 'maplibre-gl';
-  import { Map,Popup } from 'maplibre-gl';
+  import { Map, Popup } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
   import { randomColor } from 'randomcolor';
-  import { onDestroy,onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import 'svelte-material-ui/bare.css';
   import FileDrop from 'svelte-tauri-filedrop';
   import Menu from './Menu.svelte';
@@ -49,19 +49,25 @@
     unlistener = await listen<{ path: string; json_url: string }>('mbtiles', (event) => {
       onMBTilesSet(event.payload);
     });
+
+    const currentFile = localStorage.getItem('currentMBtiles');
+    if (currentFile) {
+      setupMBtiles(currentFile);
+    }
+  });
+
+  let currentMbTiles = null;
+  function setupMBtiles(filePath) {
     try {
-      const mbtiles = await resolve(
-          await resourceDir(),
-          `_up_/resources/world_cities.mbtiles`
-        );
       invoke('setup_mbtiles', {
-        // path: '/Volumes/dev/openmaptiles/openmaptiles/data/tiles.mbtiles',
-        path: mbtiles,
+        path: filePath,
       });
+      currentMbTiles = filePath;
+      localStorage.setItem('currentMBtiles', filePath);
     } catch (error) {
       console.error(error);
     }
-  });
+  }
 
   onDestroy(() => {
     unlistener();
@@ -372,10 +378,7 @@
         multiple: false,
         directory: false,
       });
-      // console.log('resPath', resPath);
-      await invoke('setup_mbtiles', {
-        path: resPath,
-      });
+      setupMBtiles(resPath);
     } catch (error) {
       console.error(error);
     }
@@ -383,9 +386,7 @@
 
   function handleDroppedFile(paths: string[]) {
     // ...
-    invoke('setup_mbtiles', {
-      path: paths[0],
-    });
+    setupMBtiles(paths[0]);
   }
 
   listen<string>('tauri://menu', ({ payload }) => {
@@ -420,11 +421,16 @@
         {/if}
       </div>
     </FileDrop>
-    <div style="position:absolute; width:100%;height:100%;display:flex;z-index:100;pointer-events:none;">
-      <Fab color="primary" on:click={selectMBtiles} style="align-self:flex-end;margin: 20px;">
+    <div
+      style="position:absolute; width:100%;height:100%;display:flex;z-index:100;pointer-events:none;"
+    >
+      <Fab color="primary" on:click={selectMBtiles} style="align-self:flex-end;margin: 20px;pointer-events:auto;">
         <Icon class="material-icons">download</Icon>
       </Fab>
     </div>
+    {#if !currentMbTiles}
+      <label id="no_mbtiles">drop or open a MBtiles</label>
+    {/if}
     <div class="map" id="map" bind:this={mapContainer} />
   </AppContent>
 </div>
