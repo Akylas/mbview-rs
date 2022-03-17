@@ -1,6 +1,6 @@
 import App from './App.svelte'
 
-import { register, init, getLocaleFromNavigator, addMessages } from 'svelte-i18n';
+import { init, getLocaleFromNavigator, addMessages } from 'svelte-i18n';
 
 
 import en from './i18n/en.json';
