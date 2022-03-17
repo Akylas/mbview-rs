@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/Akylas/mbview-rs/compare/v1.1.0...v1.2.0) (2022-03-17)
+
+
+### Features
+
+* localised app (en/fr) ([5fce561](https://github.com/Akylas/mbview-rs/commit/5fce5611f98a9d671c8b143f652b3c8d9033de59))
+
 ## [1.1.0](https://github.com/farfromrefug/mbview-rs/compare/v1.0.0...v1.1.0) (2022-03-16)
 
 

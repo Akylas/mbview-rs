@@ -1,21 +1,17 @@
 [package]
 name = "mbview"
-version = "1.1.0"
+version = "1.2.0"
 description = "MBtiles inspector"
-authors = ["dev@akylasfr"]
+authors = [ "dev@akylasfr" ]
 license = "MIT"
 repository = "https://github.com/farfromrefug/mbview"
 default-run = "mbview"
 edition = "2018"
 build = "src/build.rs"
-include = [
-    "**/*.rs"
-]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+include = [ "**/*.rs" ]
 
 [build-dependencies]
-tauri-build = { version = "1.0.0-rc.4", features = [] }
+tauri-build = { version = "1.0.0-rc.4", features = [ ] }
 
 [dependencies]
 r2d2 = "0.8"
@@ -26,19 +22,24 @@ lazy_static = "1.4"
 serde_json = "1.0"
 libsqlite3-sys = "0.24"
 notify = "4.0.17"
-tokio = { version = "1.17", features = ["full"] }
-hyper = { version = "0.14", features = ["server", "http1", "http2", "tcp"] }
-serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.0.0-rc.4", features = ["dialog-open", "fs-read-file", "path-all", "protocol-asset", "shell-open"] }
-#tauri = { git = "https://github.com/tauri-apps/tauri", rev = "543e6bd", features = ["fs-read-text-file", "shell-execute"] }
+tokio = { version = "1.17", features = [ "full" ] }
+hyper = { version = "0.14", features = [ "server", "http1", "http2", "tcp" ] }
+serde = { version = "1.0", features = [ "derive" ] }
+tauri = { version = "1.0.0-rc.4", features = [
+  "dialog-open",
+  "fs-read-file",
+  "path-all",
+  "protocol-asset",
+  "shell-open"
+] }
+
+  [dependencies.rusqlite]
+  version = "0.27"
+  features = [ "bundled" ]
 
 [features]
 default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
-
-[dependencies.rusqlite]
-version = "0.27"
-features = ["bundled"]
 
 [profile.release]
 panic = "abort"
