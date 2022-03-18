@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/Akylas/mbview-rs/compare/v1.2.0...v1.3.0) (2022-03-18)
+
+
+### Features
+
+* basic split map view support (select secondary with fab button) ([dd7b5d0](https://github.com/Akylas/mbview-rs/commit/dd7b5d0b19859d2cfc6b38450edea3f324dd278b))
+* watch open mbtiles for changes. Will reload the map when changed! ([d0cf700](https://github.com/Akylas/mbview-rs/commit/d0cf70043c94cc9a160daebac7fc5e19e765f971))
+
 ## [1.2.0](https://github.com/Akylas/mbview-rs/compare/v1.1.0...v1.2.0) (2022-03-17)
 
 
