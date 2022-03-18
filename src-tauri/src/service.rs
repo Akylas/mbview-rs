@@ -125,7 +125,7 @@ pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
             return Ok(
               response
                 .header(CONTENT_TYPE, DataFormat::Pbf.content_type())
-                .header("Cache-Control", "no-cache")
+                // .header("Cache-Control", "no-cache")
                 .header("Access-Control-Allow-Origin", "*")
                 .body(Body::from(decode(data, data_in_format).unwrap()))
                 .unwrap(),
@@ -141,7 +141,7 @@ pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
           Ok(
             response
               .header(CONTENT_TYPE, DataFormat::new(data_format).content_type())
-              .header("Cache-Control", "no-cache")
+              // .header("Cache-Control", "no-cache")
               .header("Access-Control-Allow-Origin", "*")
               .body(Body::from(data))
               .unwrap(),
