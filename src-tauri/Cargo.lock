@@ -1424,6 +1424,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hotwatch"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39301670a6f5798b75f36a1b149a379a50df5aa7c71be50f4b41ec6eab445cb8"
+dependencies = [
+ "log",
+ "notify",
+]
+
+[[package]]
 name = "html5ever"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1824,10 +1834,10 @@ name = "mbview"
 version = "1.2.0"
 dependencies = [
  "flate2",
+ "hotwatch",
  "hyper",
  "lazy_static",
  "libsqlite3-sys",
- "notify",
  "r2d2",
  "r2d2_sqlite",
  "regex",

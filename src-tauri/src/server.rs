@@ -3,24 +3,22 @@ use hyper::Server;
 // use notify::Watcher;
 
 use crate::service;
-use crate::tiles::{Tilesets};
 
 #[tokio::main]
-pub async fn run(port: u16, tilesets: Tilesets) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn run(port: u16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let addr = ([0, 0, 0, 0], port).into();
   let server = Server::try_bind(&addr)?;
   //   let tilesets = create_tilesets(path.clone());
 
   let service = {
     make_service_fn(move |_conn| {
-      let tilesets = tilesets.clone();
       // let allowed_hosts = args.allowed_hosts.clone();
       // let headers = args.headers.clone();
       // let disable_preview = args.disable_preview;
       // let allow_reload_api = args.allow_reload_api;
       async move {
         Ok::<_, hyper::Error>(service_fn(move |req| {
-          service::get_service(req, tilesets.clone())
+          service::get_service(req)
         }))
       }
     })

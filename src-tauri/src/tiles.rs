@@ -1,7 +1,10 @@
+// use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+// use std::sync::Arc;
+use hotwatch::{Event, Hotwatch};
+use std::sync::Mutex;
 
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, OpenFlags};
@@ -59,62 +62,127 @@ pub struct UTFGrid {
   pub keys: Vec<String>,
 }
 
-#[derive(Clone, Debug)]
+pub trait CloneableFn: Fn(String) -> () + Send {
+  fn clone_box<'a>(&self) -> Box<dyn 'a + CloneableFn>
+  where
+    Self: 'a;
+}
+
+impl<F: Fn(String) -> () + Clone + Send> CloneableFn for F {
+  fn clone_box<'a>(&self) -> Box<dyn 'a + CloneableFn>
+  where
+    Self: 'a,
+  {
+    Box::new(self.clone())
+  }
+}
+
+impl<'a> Clone for Box<dyn 'a + CloneableFn> {
+  fn clone(&self) -> Self {
+    (**self).clone_box()
+  }
+}
+
+#[derive(Clone)]
 struct TilesetsData {
   pub data: Option<TileMeta>,
   pub path: PathBuf,
+  pub callback: Box<dyn CloneableFn>,
 }
 
-#[derive(Clone, Debug)]
-pub struct Tilesets {
-  data: Arc<Mutex<TilesetsData>>,
+// #[derive()]
+// pub struct Tilesets {
+//   watcher: Hotwatch,
+//   data: Arc<Mutex<HashMap<String, TilesetsData>>>,
+// }
+
+lazy_static! {
+  static ref WATCHER: Mutex<Hotwatch> =
+    Mutex::new(Hotwatch::new().expect("hotwatch failed to initialize!"));
+  static ref TILESET_MAP: Mutex<HashMap<String, TilesetsData>> = Mutex::new(HashMap::new());
 }
-impl Tilesets {
-  pub fn new(data: Option<TileMeta>, path: PathBuf) -> Tilesets {
-    Tilesets {
-      data: Arc::new(Mutex::new(TilesetsData { data, path })),
+
+pub fn get_data(key: &String) -> Option<TileMeta> {
+  if has_tilesetsdata(key) {
+    get_tilesetsdata(key).data.clone()
+  } else {
+    None
+  }
+}
+
+pub fn has_tilesetsdata(key: &String) -> bool {
+  TILESET_MAP.lock().unwrap().contains_key(key)
+}
+
+fn get_tilesetsdata(key: &String) -> TilesetsData {
+  TILESET_MAP.lock().unwrap().get_mut(key).unwrap().clone()
+}
+pub fn get_path(key: &String) -> Option<PathBuf> {
+  if has_tilesetsdata(key) {
+    Some(get_tilesetsdata(key).path.clone())
+  } else {
+    None
+  }
+}
+pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) {
+  if has_tilesetsdata(key) {
+    let mut hash_data = TILESET_MAP.lock().unwrap();
+    let mut data = hash_data.get_mut(key).unwrap();
+    match WATCHER.lock().unwrap().unwatch(&data.path) {
+      Ok(_) => {}
+      Err(err) => println!("error unwatch {}", err),
     }
-  }
-  pub fn get_data(&self) -> Option<TileMeta> {
-    self.data.lock().unwrap().data.clone()
-  }
-  // pub fn get_tiledata_format(&self) -> Option<DataFormat> {
-  //   let metadata = self.data.lock().unwrap().data.clone();
-  //   if metadata.is_none() {
-  //     return None;
-  //   }
-  //   return Some(metadata.unwrap().tile_format);
-  // }
-  pub fn get_path(&self) -> PathBuf {
-    self.data.lock().unwrap().path.clone()
-  }
-  pub fn set_path(&self, path: PathBuf) {
-    let mut data = self.data.lock().unwrap();
+    let watch_key = key.clone();
+    WATCHER
+      .lock()
+      .unwrap()
+      .watch(&path, move |event: Event| {
+        if let Event::Write(_) = event {
+          reload(&watch_key);
+        }
+      })
+      .unwrap();
     data.path = path;
     data.data = match get_tile_details(&data.path) {
       Ok(tile_meta) => Some(tile_meta),
       Err(_) => None,
     };
+    data.callback = callback;
+  } else {
+    let data = TilesetsData {
+      data: match get_tile_details(&path) {
+        Ok(tile_meta) => Some(tile_meta),
+        Err(_) => None,
+      },
+      path: path.clone(),
+      callback: callback,
+    };
+    let mut hash_data = TILESET_MAP.lock().unwrap();
+    hash_data.insert(key.clone(), data);
+    let watch_key = key.clone();
+    WATCHER
+      .lock()
+      .unwrap()
+      .watch(&path.clone(), move |event: Event| {
+        if let Event::Write(_) = event {
+          reload(&watch_key);
+        }
+      })
+      .unwrap();
   }
-
-  // pub fn reload(&self) {
-  //   let mut data = self.data.lock().unwrap();
-  //   println!(
-  //     "reload {}",
-  //     data.path.clone().into_os_string().into_string().unwrap()
-  //   );
-  //   data.data = match get_tile_details(&data.path) {
-  //     Ok(tile_meta) => Some(tile_meta),
-  //     Err(err) => None,
-  //   };
-  // }
 }
 
-// impl Clone for Tilesets {
-//   fn clone(&self) -> Tilesets {
-//       *self
-//   }
-// }
+pub fn reload(key: &String) {
+  if has_tilesetsdata(key) {
+    let mut hash_data = TILESET_MAP.lock().unwrap();
+    let mut data = hash_data.get_mut(key).unwrap();
+    data.data = match get_tile_details(&data.path) {
+      Ok(tile_meta) => Some(tile_meta),
+      Err(_) => None,
+    };
+    (data.callback)(key.clone());
+  }
+}
 
 pub fn get_data_format_via_query(
   tile_name: &str,
@@ -226,121 +294,8 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
   Ok(metadata)
 }
 
-pub fn create_tilesets(path: Option<PathBuf>) -> Tilesets {
-  if path.is_none() {
-    return Tilesets::new(None, PathBuf::from(""));
-  } else {
-    let the_path = path.unwrap().clone();
-    return Tilesets::new(
-      match get_tile_details(&the_path) {
-        Ok(tile_meta) => Some(tile_meta),
-        Err(_) => None,
-      },
-      the_path,
-    );
-  }
-}
-
-// pub fn discover_tilesets(parent_dir: String, path: PathBuf) -> Tilesets {
-//     // Walk through the given path and its subfolders, find all valid mbtiles and create and return a map of mbtiles file names to their absolute path
-//     let mut tiles = HashMap::new();
-//     for p in read_dir(path.clone()).unwrap() {
-//         let p = p.unwrap().path();
-//         if p.is_dir() {
-//             let dir_name = p.file_stem().unwrap().to_str().unwrap();
-//             let mut parent_dir_cloned = parent_dir.clone();
-//             parent_dir_cloned.push_str(dir_name);
-//             parent_dir_cloned.push('/');
-//             tiles.extend(discover_tilesets(parent_dir_cloned, p));
-//         } else if p.extension().and_then(OsStr::to_str) == Some("mbtiles") {
-//             let file_name = p.file_stem().and_then(OsStr::to_str).unwrap();
-//             let mut parent_dir_cloned = parent_dir.clone();
-//             parent_dir_cloned.push_str(file_name);
-//             match get_tile_details(&p, file_name) {
-//                 Ok(tile_meta) => tiles.insert(parent_dir_cloned, tile_meta),
-//                 Err(err) => {
-//                     // warn!("{}", err);
-//                     None
-//                 }
-//             };
-//         }
-//     }
-//     Tilesets::new(tiles, path)
-// }
-
-// fn get_grid_info(tile_name: &str, connection: &Connection) -> Option<DataFormat> {
-//   let mut statement = connection.prepare(r#"SELECT count(*) FROM sqlite_master WHERE name IN ('grids', 'grid_data', 'grid_utfgrid', 'keymap', 'grid_key')"#).unwrap();
-//   let count: u8 = statement
-//     .query_row([], |row| Ok(row.get(0).unwrap()))
-//     .unwrap();
-//   if count == 5 {
-//     match get_data_format_via_query(tile_name, connection, "grid") {
-//       Ok(grid_format) => return Some(grid_format),
-//       Err(err) => {
-//         // warn!("{}", err);
-//         return None;
-//       }
-//     };
-//   }
-//   None
-// }
-
-// pub fn get_grid_data(
-//   connection: &Connection,
-//   data_format: DataFormat,
-//   z: u32,
-//   x: u32,
-//   y: u32,
-// ) -> Result<UTFGrid> {
-//   let mut statement = connection
-//     .prepare(
-//       r#"SELECT grid
-//                  FROM grids
-//                 WHERE zoom_level = ?1
-//                   AND tile_column = ?2
-//                   AND tile_row = ?3
-//             "#,
-//     )
-//     .unwrap();
-//   let grid_data = match statement.query_row(params![z, x, y], |row| {
-//     Ok(row.get::<_, Vec<u8>>(0).unwrap())
-//   }) {
-//     Ok(d) => d,
-//     Err(err) => return Err(Error::DBConnection(err)),
-//   };
-//   let grid_key_json: UTFGridKeys =
-//     serde_json::from_str(&decode(grid_data, data_format).unwrap()).unwrap();
-//   let mut grid_data = UTFGrid {
-//     data: HashMap::new(),
-//     grid: grid_key_json.grid,
-//     keys: grid_key_json.keys,
-//   };
-
-//   let mut statement = connection
-//     .prepare(
-//       r#"SELECT key_name, key_json
-//                  FROM grid_data
-//                 WHERE zoom_level = ?1
-//                   AND tile_column = ?2
-//                   AND tile_row = ?3
-//             "#,
-//     )
-//     .unwrap(); // TODO handle error
-//   let grid_data_iter = statement
-//     .query_map(params![z, x, y], |row| {
-//       Ok((
-//         row.get::<_, String>(0).unwrap(),
-//         row.get::<_, String>(1).unwrap(),
-//       ))
-//     })
-//     .unwrap();
-//   for gd in grid_data_iter {
-//     let (key, value) = gd.unwrap();
-//     let value: JSONValue = serde_json::from_str(&value).unwrap();
-//     grid_data.data.insert(key, value);
-//   }
-
-//   Ok(grid_data)
+// pub fn create_tilesets() -> Tilesets {
+//   return Tilesets::new();
 // }
 
 pub fn get_tile_data(connection: &Connection, z: u32, x: u32, y: u32) -> Result<Vec<u8>> {

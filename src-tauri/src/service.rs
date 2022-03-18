@@ -6,14 +6,14 @@ use regex::Regex;
 use serde_json::json;
 
 use crate::errors::Result;
-use crate::tiles::{get_tile_data, Tilesets};
+use crate::tiles::{get_tile_data, get_data};
 use crate::utils::{decode, get_blank_image, get_data_format, DataFormat};
 
 lazy_static! {
   static ref TILE_URL_RE: Regex =
-    Regex::new(r"^(?P<tile_path>.*)/tiles/(?P<z>\d+)/(?P<x>\d+)/(?P<y>\d+)\.(?P<format>[a-zA-Z]+)")
+    Regex::new(r"^/(?P<tile_path>.*)/tiles/(?P<z>\d+)/(?P<x>\d+)/(?P<y>\d+)\.(?P<format>[a-zA-Z]+)")
       .unwrap();
-  static ref META_URL_RE: Regex = Regex::new(r"^(?P<tile_path>.*)/tiles.json").unwrap();
+  static ref META_URL_RE: Regex = Regex::new(r"^/(?P<tile_path>.*)/tiles.json").unwrap();
 }
 
 #[allow(dead_code)]
@@ -93,17 +93,18 @@ fn get_host(req: &Request<Body>) -> Option<&str> {
 //   false
 // }
 
-pub async fn get_service(request: Request<Body>, tilesets: Tilesets) -> Result<Response<Body>> {
+pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
   // if !is_host_valid(&host, &allowed_hosts) {
   //     return Ok(forbidden());
   // };
   let uri = request.uri();
   let path = uri.path();
-//   println!("get_service {}", path);
+  // println!("get_service {}", path);
 
   match TILE_URL_RE.captures(path) {
     Some(matches) => {
-      let tile_meta = tilesets.get_data().unwrap();
+      let tile_path = matches.name("tile_path").unwrap().as_str().to_string();
+      let tile_meta = get_data(&tile_path).unwrap();
       let z = matches.name("z").unwrap().as_str().parse::<u32>().unwrap();
       let x = matches.name("x").unwrap().as_str().parse::<u32>().unwrap();
       let y = matches.name("y").unwrap().as_str().parse::<u32>().unwrap();
@@ -124,6 +125,7 @@ pub async fn get_service(request: Request<Body>, tilesets: Tilesets) -> Result<R
             return Ok(
               response
                 .header(CONTENT_TYPE, DataFormat::Pbf.content_type())
+                .header("Cache-Control", "no-cache")
                 .header("Access-Control-Allow-Origin", "*")
                 .body(Body::from(decode(data, data_in_format).unwrap()))
                 .unwrap(),
@@ -139,6 +141,7 @@ pub async fn get_service(request: Request<Body>, tilesets: Tilesets) -> Result<R
           Ok(
             response
               .header(CONTENT_TYPE, DataFormat::new(data_format).content_type())
+              .header("Cache-Control", "no-cache")
               .header("Access-Control-Allow-Origin", "*")
               .body(Body::from(data))
               .unwrap(),
@@ -150,13 +153,13 @@ pub async fn get_service(request: Request<Body>, tilesets: Tilesets) -> Result<R
       return match META_URL_RE.captures(path) {
         Some(matches) => {
           let host = get_host(&request).unwrap();
-          let tile_meta = tilesets.get_data().unwrap();
           let tile_path = matches.name("tile_path").unwrap().as_str();
+          let tile_meta = get_data(&tile_path.to_string()).unwrap();
           let mut tile_meta_json = json!({
               "name": tile_meta.name,
               "version": tile_meta.version,
               "tiles": vec![format!(
-                  "http://{}{}/tiles/{{z}}/{{x}}/{{y}}.{}",
+                  "http://{}/{}/tiles/{{z}}/{{x}}/{{y}}.{}",
                   host,
                   tile_path,
                   tile_meta.tile_format.format(),
