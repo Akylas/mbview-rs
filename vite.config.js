@@ -22,6 +22,11 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
   },
+  resolve:{
+    alias:{
+      'mapbox-gl':'maplibre-gl'
+    }
+  },
   build: {
     outDir: '../build',
     emptyOutDir: true,

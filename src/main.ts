@@ -1,4 +1,4 @@
-import App from './App.svelte'
+import App from './components/App.svelte'
 
 import { init, getLocaleFromNavigator, addMessages } from 'svelte-i18n';
 

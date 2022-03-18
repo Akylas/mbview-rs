@@ -44,6 +44,7 @@
     "cssnano": "^5.1.4",
     "eslint": "^8.11.0",
     "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-svelte3": "^3.4.1",
     "prettier": "^2.6.0",
     "prettier-plugin-svelte": "^2.6.0",
@@ -61,8 +62,11 @@
     "singleQuote": true
   },
   "dependencies": {
+    "@maplibre/maplibre-gl-compare": "^0.5.0",
     "@smui/fab": "^6.0.0-beta.13",
     "@smui/paper": "^6.0.0-beta.13",
+    "events": "^3.3.0",
+    "mapbox-gl-controls": "^2.3.5",
     "maplibre-gl": "^2.1.1",
     "randomcolor": "^0.6.2",
     "svelte-i18n": "^3.3.13",

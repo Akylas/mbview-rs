@@ -7,5 +7,7 @@
   "points": "points",
   "polygons": "polygons",
   "show_attribute_popup": "Show Attributes popup",
+  "show_background_layer": "Show background layer",
+  "show_popup_only_click": "Show popup only on click",
   "show_tile_boundaries": "Show tile boundaries"
 }

@@ -3,6 +3,7 @@ lockfileVersion: 5.3
 specifiers:
   '@commitlint/cli': ^16.2.1
   '@commitlint/config-conventional': ^16.2.1
+  '@maplibre/maplibre-gl-compare': ^0.5.0
   '@smui-extra/autocomplete': 6.0.0-beta.15
   '@smui/checkbox': 6.0.0-beta.15
   '@smui/circular-progress': 6.0.0-beta.15
@@ -27,12 +28,15 @@ specifiers:
   '@tauri-apps/toml': ^2.2.4
   '@typescript-eslint/eslint-plugin': ^5.15.0
   '@typescript-eslint/parser': ^5.15.0
-  cssnano: ^5.1.3
+  cssnano: ^5.1.4
   eslint: ^8.11.0
   eslint-config-prettier: ^8.5.0
+  eslint-plugin-prettier: ^4.0.0
   eslint-plugin-svelte3: ^3.4.1
+  events: ^3.3.0
+  mapbox-gl-controls: ^2.3.5
   maplibre-gl: ^2.1.1
-  prettier: ^2.5.1
+  prettier: ^2.6.0
   prettier-plugin-svelte: ^2.6.0
   randomcolor: ^0.6.2
   sass: ^1.49.9
@@ -47,8 +51,11 @@ specifiers:
   vite: ^2.8.6
 
 dependencies:
+  '@maplibre/maplibre-gl-compare': 0.5.0_maplibre-gl@2.1.1
   '@smui/fab': 6.0.0-beta.13_svelte@3.46.4+typescript@4.6.2
   '@smui/paper': 6.0.0-beta.13_svelte@3.46.4+typescript@4.6.2
+  events: 3.3.0
+  mapbox-gl-controls: 2.3.5
   maplibre-gl: 2.1.1
   randomcolor: 0.6.2
   svelte-i18n: 3.3.13_svelte@3.46.4
@@ -83,9 +90,10 @@ devDependencies:
   cssnano: 5.1.4
   eslint: 8.11.0
   eslint-config-prettier: 8.5.0_eslint@8.11.0
+  eslint-plugin-prettier: 4.0.0_68edcf5670f37721baf5d2cac6124e4d
   eslint-plugin-svelte3: 3.4.1_eslint@8.11.0+svelte@3.46.4
-  prettier: 2.5.1
-  prettier-plugin-svelte: 2.6.0_prettier@2.5.1+svelte@3.46.4
+  prettier: 2.6.0
+  prettier-plugin-svelte: 2.6.0_prettier@2.6.0+svelte@3.46.4
   sass: 1.49.9
   standard-version: 9.3.2
   svelte: 3.46.4
@@ -376,6 +384,12 @@ packages:
     resolution: {integrity: sha512-HP6XvfNIzfoMVfyGjBckjiAOQK9WfX0ywdLubuPMPv+Vqf5fj0uCbgBQYpiqcWZT6cbyyRnTSXDheT1ugvF6UQ==}
     dev: false
 
+  /@mapbox/mapbox-gl-sync-move/0.3.0:
+    resolution: {integrity: sha512-ecApNLDoOdKVTZEKI/Wb5ZPinegHH1KyrEM5T6Q5QcNPDEoOFC/Gn8bK5iv4sD2akfNJacDtqqTaa1f2Oz6m+w==}
+    peerDependencies:
+      mapbox-gl: '>=0.32.1 <2.0.0'
+    dev: false
+
   /@mapbox/point-geometry/0.1.0:
     resolution: {integrity: sha1-ioP5M1x4YO/6Lu7KJUMyqgru2PI=}
     dev: false
@@ -397,6 +411,17 @@ packages:
   /@mapbox/whoots-js/3.1.0:
     resolution: {integrity: sha512-Es6WcD0nO5l+2BOQS4uLfNPYQaNDfbot3X1XUoloz+x0mPDS3eeORZJl06HXjwBG1fOGwCRnzK88LMdxKRrd6Q==}
     engines: {node: '>=6.0.0'}
+    dev: false
+
+  /@maplibre/maplibre-gl-compare/0.5.0_maplibre-gl@2.1.1:
+    resolution: {integrity: sha512-tJ5MtbMXhVstu85NSArkvZFewV0i19qBOP4TyO6JSNFY0qV3zwGLXxmxalg1QGdi18cmKnmZT86BoLCSS0rEPg==}
+    peerDependencies:
+      maplibre-gl: '>=1.14.0'
+    dependencies:
+      '@mapbox/mapbox-gl-sync-move': 0.3.0
+      maplibre-gl: 2.1.1
+    transitivePeerDependencies:
+      - mapbox-gl
     dev: false
 
   /@material/animation/13.0.0:
@@ -1737,6 +1762,23 @@ packages:
   /@tsconfig/svelte/3.0.0:
     resolution: {integrity: sha512-pYrtLtOwku/7r1i9AMONsJMVYAtk3hzOfiGNekhtq5tYBGA7unMve8RvUclKLMT3PrihvJqUmzsRGh0RP84hKg==}
 
+  /@turf/distance/6.3.0:
+    resolution: {integrity: sha512-basi24ssNFnH3iXPFjp/aNUrukjObiFWoIyDRqKyBJxVwVOwAWvfk4d38QQyBj5nDo5IahYRq/Q+T47/5hSs9w==}
+    dependencies:
+      '@turf/helpers': 6.5.0
+      '@turf/invariant': 6.5.0
+    dev: false
+
+  /@turf/helpers/6.5.0:
+    resolution: {integrity: sha512-VbI1dV5bLFzohYYdgqwikdMVpe7pJ9X3E+dlr425wa2/sMJqYDhTO++ec38/pcPvPE6oD9WEEeU3Xu3gza+VPw==}
+    dev: false
+
+  /@turf/invariant/6.5.0:
+    resolution: {integrity: sha512-Wv8PRNCtPD31UVbdJE/KVAWKe7l6US+lJItRR/HOEW3eh+U/JwRCSUl/KZ7bmjM/C+zLNoreM2TU6OoLACs4eg==}
+    dependencies:
+      '@turf/helpers': 6.5.0
+    dev: false
+
   /@types/json-schema/7.0.9:
     resolution: {integrity: sha512-qcUXuemtEu+E5wZSJHNxUXeCZhAfXKQ41D+duX+VYPde7xyEVZci+/oXKJL13tnRs9lR2pr4fod59GT6/X1/yQ==}
     dev: true
@@ -2849,6 +2891,23 @@ packages:
       eslint: 8.11.0
     dev: true
 
+  /eslint-plugin-prettier/4.0.0_68edcf5670f37721baf5d2cac6124e4d:
+    resolution: {integrity: sha512-98MqmCJ7vJodoQK359bqQWaxOE0CS8paAz/GgjaZLyex4TTk3g9HugoO89EqWCrFiOqn9EVvcoo7gZzONCWVwQ==}
+    engines: {node: '>=6.0.0'}
+    peerDependencies:
+      eslint: '>=7.28.0'
+      eslint-config-prettier: '*'
+      prettier: '>=2.0.0'
+    peerDependenciesMeta:
+      eslint-config-prettier:
+        optional: true
+    dependencies:
+      eslint: 8.11.0
+      eslint-config-prettier: 8.5.0_eslint@8.11.0
+      prettier: 2.6.0
+      prettier-linter-helpers: 1.0.0
+    dev: true
+
   /eslint-plugin-svelte3/3.4.1_eslint@8.11.0+svelte@3.46.4:
     resolution: {integrity: sha512-7p59WG8qV8L6wLdl4d/c3mdjkgVglQCdv5XOTk/iNPBKXuuV+Q0eFP5Wa6iJd/G2M1qR3BkLPEzaANOqKAZczw==}
     engines: {node: '>=10'}
@@ -2981,6 +3040,11 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
+  /events/3.3.0:
+    resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
+    engines: {node: '>=0.8.x'}
+    dev: false
+
   /execa/5.1.1:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
     engines: {node: '>=10'}
@@ -2998,6 +3062,10 @@ packages:
 
   /fast-deep-equal/3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
+    dev: true
+
+  /fast-diff/1.2.0:
+    resolution: {integrity: sha512-xJuoT5+L99XlZ8twedaRf6Ax2TgQVxvgZOYoPKqZufmJib0tL2tegPBOZb1pVNgIhlqDlA0eO0c3wBvQcmzx4w==}
     dev: true
 
   /fast-glob/3.2.11:
@@ -3591,6 +3659,14 @@ packages:
     resolution: {integrity: sha512-hdN1wVrZbb29eBGiGjJbeP8JbKjq1urkHJ/LIP/NY48MZ1QVXUsQBV1G1zvYFHn1XE06cwjBsOI2K3Ulnj1YXQ==}
     engines: {node: '>=8'}
     dev: true
+
+  /mapbox-gl-controls/2.3.5:
+    resolution: {integrity: sha512-FP4c7WhNoE+5JicMkq8TSqJwaxEpkhJlsq4Ye1lIGBy7ubS/l6EZ15ZRumrICpDZGOMMlfKKCpaCo+Kt5omkTg==}
+    peerDependencies:
+      mapbox-gl: '>=1.0.0 <3.0.0'
+    dependencies:
+      '@turf/distance': 6.3.0
+    dev: false
 
   /maplibre-gl/2.1.1:
     resolution: {integrity: sha512-FRAHc4kPYKDF0+QMm8tnkyhv65Ed5SKLbzcH6hHM20XAK+9pqHMIHxlwpxcb4zGl+czz1bUegYf/KXjJRh9aDA==}
@@ -4234,18 +4310,25 @@ packages:
     engines: {node: '>= 0.8.0'}
     dev: true
 
-  /prettier-plugin-svelte/2.6.0_prettier@2.5.1+svelte@3.46.4:
+  /prettier-linter-helpers/1.0.0:
+    resolution: {integrity: sha512-GbK2cP9nraSSUF9N2XwUwqfzlAFlMNYYl+ShE/V+H8a9uNl/oUqB1w2EL54Jh0OlyRSd8RfWYJ3coVS4TROP2w==}
+    engines: {node: '>=6.0.0'}
+    dependencies:
+      fast-diff: 1.2.0
+    dev: true
+
+  /prettier-plugin-svelte/2.6.0_prettier@2.6.0+svelte@3.46.4:
     resolution: {integrity: sha512-NPSRf6Y5rufRlBleok/pqg4+1FyGsL0zYhkYP6hnueeL1J/uCm3OfOZPsLX4zqD9VAdcXfyEL2PYqGv8ZoOSfA==}
     peerDependencies:
       prettier: ^1.16.4 || ^2.0.0
       svelte: ^3.2.0
     dependencies:
-      prettier: 2.5.1
+      prettier: 2.6.0
       svelte: 3.46.4
     dev: true
 
-  /prettier/2.5.1:
-    resolution: {integrity: sha512-vBZcPRUR5MZJwoyi3ZoyQlc1rXeEck8KgeC9AwwOn+exuxLxq5toTRDTSaVrXHxelDMHy9zlicw8u66yxoSUFg==}
+  /prettier/2.6.0:
+    resolution: {integrity: sha512-m2FgJibYrBGGgQXNzfd0PuDGShJgRavjUoRCw1mZERIWVSXF0iLzLm+aOqTAbLnC3n6JzUhAA8uZnFVghHJ86A==}
     engines: {node: '>=10.13.0'}
     hasBin: true
     dev: true

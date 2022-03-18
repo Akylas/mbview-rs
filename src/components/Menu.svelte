@@ -11,6 +11,8 @@
   export let map;
   export let wantPopup;
   export let wantTileBounds;
+  export let popupOnClick;
+  export let showBackgroundLayer;
   // export let drawerOpened;
   let menu;
 
@@ -163,8 +165,16 @@
       {/each}
       <Separator />
       <FormField>
+        <Switch bind:checked={showBackgroundLayer} />
+        <span slot="label">{$_('show_background_layer')}</span>
+      </FormField>
+      <FormField>
         <Switch bind:checked={wantPopup} />
         <span slot="label">{$_('show_attribute_popup')}</span>
+      </FormField>
+      <FormField>
+        <Switch bind:checked={popupOnClick} />
+        <span slot="label">{$_('show_popup_only_click')}</span>
       </FormField>
     {/if}
     <FormField>
