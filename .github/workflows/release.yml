@@ -102,6 +102,8 @@ jobs:
     steps:
       - name: Update release
         uses: irongut/EditRelease@v1.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           id: ${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}
           draft: false
