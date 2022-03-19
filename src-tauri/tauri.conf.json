@@ -39,7 +39,7 @@
         "minimumSystemVersion": "10.13",
         "useBootstrapper": false,
         "exceptionDomain": "localhost",
-        "signingIdentity": "Apple Development: Martin Guillon (4ZZRPWM525)",
+        "signingIdentity": null,
         "entitlements": null
       },
       "windows": {
@@ -65,7 +65,7 @@
       "fs":{
         "readFile": true,
         "scope": {
-          "allow": ["$DOWNLOAD/**", "$RESOURCE/**"]
+          "allow": ["**"]
         }
       },
       "protocol": {
