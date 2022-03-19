@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.1](https://github.com/Akylas/mbview-rs/compare/v1.3.0...v1.3.1) (2022-03-19)
+
+
+### Bug Fixes
+
+* bring back tiles cache ([5044028](https://github.com/Akylas/mbview-rs/commit/5044028dee01384974d4e07b2ab68ba5437f4adf))
+* fix white screen on production build ([55945e0](https://github.com/Akylas/mbview-rs/commit/55945e020270a5e03ccdfee3c42af397f36997cb))
+
+
+
 ## [1.3.0](https://github.com/Akylas/mbview-rs/compare/v1.2.0...v1.3.0) (2022-03-18)
 
 
