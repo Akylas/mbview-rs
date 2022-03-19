@@ -4,3 +4,4 @@ build
 
 src-tauri/target
 src-tauri/WixTools
+/.vscode
