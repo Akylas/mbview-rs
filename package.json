@@ -1,4 +1,28 @@
 {
+  "name": "com.akylas.mbview",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Akylas/mbview-rs.git"
+  },
+  "author": {
+    "name": "Martin Guillon",
+    "email": "martin@akylas.fr"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Akylas/mbview-rs/issues"
+  },
+  "homepage": "https://github.com/Akylas/mbview-rs#readme",
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "prettier": {
+    "printWidth": 100,
+    "semi": true,
+    "singleQuote": true
+  },
   "private": true,
   "scripts": {
     "dev": "tauri dev",
@@ -10,11 +34,6 @@
     "format": "prettier --write --plugin-search-dir=. src *.js && eslint --fix src *.js",
     "check": "cargo check --manifest-path src-tauri/Cargo.toml && eslint src *.js && svelte-check",
     "release": "standard-version --commit-all"
-  },
-  "commitlint": {
-    "extends": [
-      "@commitlint/config-conventional"
-    ]
   },
   "devDependencies": {
     "@commitlint/cli": "^16.2.1",
@@ -55,11 +74,6 @@
     "svelte-preprocess": "^4.10.4",
     "typescript": "^4.6.2",
     "vite": "^2.8.6"
-  },
-  "prettier": {
-    "printWidth": 100,
-    "semi": true,
-    "singleQuote": true
   },
   "dependencies": {
     "@maplibre/maplibre-gl-compare": "^0.5.0",
