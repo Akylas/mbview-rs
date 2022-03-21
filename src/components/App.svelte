@@ -1,6 +1,7 @@
 <script lang="ts">
+  import Compare from '@maplibre/maplibre-gl-compare';
+  import '@maplibre/maplibre-gl-compare/dist/maplibre-gl-compare.css';
   import { Icon } from '@smui/common';
-  import { AppContent, Title } from '@smui/drawer';
   import Fab from '@smui/fab';
   import { invoke } from '@tauri-apps/api';
   import { open } from '@tauri-apps/api/dialog';
@@ -8,27 +9,39 @@
   import { readTextFile } from '@tauri-apps/api/fs';
   import { resolve, resourceDir } from '@tauri-apps/api/path';
   import { open as openURl } from '@tauri-apps/api/shell';
-  import * as maplibregl from 'maplibre-gl';
+  import { CompassControl, RulerControl, ZoomControl } from 'mapbox-gl-controls';
   import { Map, Popup } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
   import { randomColor } from 'randomcolor';
   import { onDestroy, onMount } from 'svelte';
+  import { _ } from 'svelte-i18n';
   import 'svelte-material-ui/bare.css';
   import FileDrop from 'svelte-tauri-filedrop';
   import Menu from './Menu.svelte';
-  import { _, isLoading } from 'svelte-i18n';
   import { ScaleControl } from './ScaleControl';
-  import { CompassControl, RulerControl, ZoomControl } from 'mapbox-gl-controls';
-  import { mapObject } from 'maplibre-gl/src/util/util';
-  import Compare from '@maplibre/maplibre-gl-compare';
-  import '@maplibre/maplibre-gl-compare/dist/maplibre-gl-compare.css';
+  import Split from '@geoffcox/svelte-splitter/src/Split.svelte';
+  import SplitScreen16 from 'carbon-icons-svelte/lib/SplitScreen16';
+  import {
+    Content,
+    Header,
+    HeaderAction,
+    HeaderGlobalAction,
+    HeaderUtilities,
+    Select,
+    SelectItem,
+    SkipToContent,
+    Theme,
+  } from 'carbon-components-svelte';
+  import type { CarbonTheme } from 'carbon-components-svelte/types/Theme/Theme.svelte';
 
-  let map: Map;
-  let secondaryMap: Map;
+  let map: Map = null;
+  let secondaryMap: Map = null;
   let compareMap: Compare;
   let wantTileBounds = false;
-  let popupOnClick = false;
-  let showBackgroundLayer = true;
+  let mainPopupOnClick = false;
+  let secondaryPopupOnClick = false;
+  let mainShowBackgroundLayer = false;
+  let secondaryShowBackgroundLayer = false;
   let basemap = 'basic';
   // let mapLayers: string[] = [];
   // let mapSources: string[] = [];
@@ -40,37 +53,52 @@
   //     popup._onClose();
   //   }
   // }
+  interface Layers {
+    points: string[];
+    lines: string[];
+    rasters: string[];
+    polygons: string[];
+    colors: {};
+  }
 
-  let popup = new Popup({
+  let mainPopup = new Popup({
+    closeButton: false,
+    closeOnClick: false,
+    className: 'map_popup',
+    // closeOnMove: false,
+  });
+  let secondaryPopup = new Popup({
     closeButton: false,
     closeOnClick: false,
     className: 'map_popup',
     // closeOnMove: false,
   });
 
-  let mainLayers = {
-    points: [],
-    lines: [],
-    polygons: [],
-    colors: {},
-  };
+  // let mainLayers: Layers = {
+  //   points: [],
+  //   rasters: [],
+  //   lines: [],
+  //   polygons: [],
+  //   colors: {},
+  // };
   let mainSources = [];
-  let secondaryLayers = {
-    points: [],
-    lines: [],
-    polygons: [],
-    colors: {},
-  };
+  // let secondaryLayers: Layers = {
+  //   points: [],
+  //   rasters: [],
+  //   lines: [],
+  //   polygons: [],
+  //   colors: {},
+  // };
   let secondarySources = [];
   let wantPopup = true;
 
-  const tilesJSON = 'http://localhost:9782/test/tiles.json';
+  // const tilesJSON = 'http://localhost:9782/test/tiles.json';
   // const tilesJSON = 'http://localhost:8082/data/data.json';
 
   onMount(async () => {
     // const styleSrc = await resolve(await resourceDir(), '../resources/styles/streets.json');
     // console.log('test', styleSrc)
-    unlistener = await listen<{ path: string; json_url: string; key: string }>(
+    unlistener = await listen<{ path: string; json_url: string; key: string; source_id: string }>(
       'mbtiles',
       (event) => {
         onMBTilesSet(event.payload);
@@ -90,22 +118,18 @@
     });
 
     const currentFile = localStorage.getItem('currentMBtiles');
-    if (currentFile) {
+    if (currentFile && currentFile !== 'undefined') {
       setupMBtiles(currentFile);
     }
   });
 
-  let currentMbTiles = null;
+  let hasSources = false;
   function setupMBtiles(filePath, key = 'main') {
     try {
       invoke('setup_mbtiles', {
         key,
         path: filePath,
       });
-      currentMbTiles = filePath;
-      if (key === 'main') {
-        localStorage.setItem('currentMBtiles', filePath);
-      }
     } catch (error) {
       console.error(error);
     }
@@ -158,16 +182,18 @@
     const rgba = rgb.concat([alpha || 1]);
     return 'rgba(' + rgba.join(', ') + ')';
   }
-
-  function addPolygonLayer(map: Map, id: string, layerColor, layers) {
-    let layerId = `${id}-polygons`;
+  function layerIdPrefix(sId, id: string) {
+    return `___${sId}___${id}`;
+  }
+  function addPolygonLayer(map: Map, sId, id: string, layerColor, layers) {
+    let layerId = `${layerIdPrefix(sId, id)}-polygons`;
 
     // mapLayers.push(layerId);
     layers.polygons.push(layerId);
     map.addLayer({
       id: layerId,
       type: 'fill',
-      source: 'mbtiles',
+      source: sId,
       'source-layer': id,
       filter: ['==', '$type', 'Polygon'],
       layout: {},
@@ -176,13 +202,13 @@
         'fill-color': layerColor,
       },
     });
-    layerId = `${id}-polygons-outline`;
+    layerId = layerId + `-outline`;
     layers.polygons.push(layerId);
     // mapLayers.push(layerId);
     map.addLayer({
       id: layerId,
       type: 'line',
-      source: 'mbtiles',
+      source: sId,
       'source-layer': id,
       filter: ['==', '$type', 'Polygon'],
       layout: {
@@ -196,14 +222,14 @@
       },
     });
   }
-  function addPointLayer(map: Map, id: string, layerColor, layers) {
-    let layerId = `${id}-points`;
+  function addPointLayer(map: Map, sId, id: string, layerColor, layers) {
+    let layerId = `${layerIdPrefix(sId, id)}-points`;
     // mapLayers.push(layerId);
     layers.points.push(layerId);
     map.addLayer({
       id: layerId,
       type: 'circle',
-      source: 'mbtiles',
+      source: sId,
       'source-layer': id,
       filter: ['==', '$type', 'Point'],
       paint: {
@@ -213,14 +239,14 @@
       },
     });
   }
-  function addLineLayer(map: Map, id: string, layerColor, layers) {
-    let layerId = `${id}-lines`;
+  function addLineLayer(map: Map, sId, id: string, layerColor, layers) {
+    let layerId = `${layerIdPrefix(sId, id)}-lines`;
     // mapLayers.push(layerId);
     layers.lines.push(layerId);
     map.addLayer({
       id: layerId,
       type: 'line',
-      source: 'mbtiles',
+      source: sId,
       'source-layer': id,
       filter: ['==', '$type', 'LineString'],
       layout: {
@@ -258,12 +284,12 @@
     );
   }
 
-  function renderLayer(layerId) {
-    return `<div class="mbview_layer" style="color:${mainLayers.colors[layerId]};">${layerId}</div>`;
+  function renderLayer(layers: Layers, layerId) {
+    return `<div class="mbview_layer" style="color:${layers.colors[layerId]};">${layerId}</div>`;
   }
 
-  function renderProperties(feature) {
-    var sourceProperty = renderLayer(feature.layer['source-layer'] || feature.layer.source);
+  function renderProperties(layers: Layers, feature) {
+    var sourceProperty = renderLayer(layers, feature.layer['source-layer'] || feature.layer.source);
     var idProperty = renderProperty('$id', feature.id);
     var typeProperty = renderProperty('$type', feature.geometry.type);
     var properties = Object.keys(feature.properties).map(function (propertyName) {
@@ -276,20 +302,20 @@
       .join('');
   }
 
-  function renderFeatures(features) {
+  function renderFeatures(layers: Layers, features) {
     return features
       .map(function (ft) {
-        return '<div class="mbview_feature">' + renderProperties(ft) + '</div>';
+        return '<div class="mbview_feature">' + renderProperties(layers, ft) + '</div>';
       })
       .join('');
   }
 
-  function renderPopup(features) {
-    return '<div class="mbview_popup">' + renderFeatures(features) + '</div>';
+  function renderPopup(layers: Layers, features) {
+    return '<div class="mbview_popup">' + renderFeatures(layers, features) + '</div>';
   }
 
-  function handlePopup(e) {
-    if (!mainLayers) {
+  function handlePopup(map: Map, sources: { layers: Layers }[], popup: Popup, e) {
+    if (!sources) {
       return;
     }
     // set a bbox around the pointer
@@ -299,131 +325,284 @@
       [e.point.x + selectThreshold, e.point.y - selectThreshold], // top right (NE)
     ];
 
+    const layers = sources.reduce(
+      (prev, curr) => {
+        const layer = curr.layers;
+        if (layer.points) {
+          prev.points.push(...layer.points);
+        }
+        if (layer.lines) {
+          prev.lines.push(...layer.lines);
+        }
+        if (layer.polygons) {
+          prev.polygons.push(...layer.polygons);
+        }
+        if (layer.rasters) {
+          prev.rasters.push(...layer.rasters);
+        }
+        if (layer.colors) {
+          Object.keys(layer.colors).forEach((c) => {
+            if (!prev.colors[c]) {
+              prev.colors[c] = layer.colors[c];
+            }
+          });
+        }
+        return prev;
+      },
+      {
+        points: [],
+        rasters: [],
+        lines: [],
+        polygons: [],
+        colors: {},
+      }
+    );
+
     var features =
       map.queryRenderedFeatures(queryBox, {
-        layers: mainLayers.polygons.concat(mainLayers.lines.concat(mainLayers.points)),
+        layers: layers.polygons.concat(layers.lines.concat(layers.points)),
       }) || [];
     map.getCanvas().style.cursor = features.length ? 'pointer' : '';
 
     if (!features.length || !wantPopup) {
       popup.remove();
     } else {
-      popup.setLngLat(e.lngLat).setHTML(renderPopup(features)).addTo(map);
+      popup.setLngLat(e.lngLat).setHTML(renderPopup(layers, features)).addTo(map);
+    }
+  }
+  async function removeDataSource(key, source) {
+    const resultMap = key === 'main' ? map : secondaryMap;
+    const layers = source.layers;
+    console.log('removeDataSource', key, source, Object.keys(resultMap.style._layers));
+    const layerIds = Object.keys(resultMap.style._layers).filter((s) =>
+      s.startsWith(`___${source.id}`) || s === `${source.id}-layer`
+    );
+    console.log('layerIds', layerIds);
+    layerIds.forEach((s) => {
+      resultMap.removeLayer(s);
+      delete layers[s];
+    });
+    resultMap.removeSource(source.id);
+    if (key === 'main') {
+      const index = mainSources.findIndex((s) => (s.id = source.id));
+      console.log('index', index);
+      if (index !== -1) {
+        mainSources.splice(index, 1);
+        mainSources = mainSources;
+      }
+      updateMainSourcesCount();
+    } else {
+      const index = secondarySources.findIndex((s) => (s.id = source.id));
+      if (index !== -1) {
+        console.log('index', index);
+        secondarySources.splice(index, 1);
+        secondarySources = secondarySources;
+      }
+    }
+  }
+  function updateMainSourcesCount() {
+    hasSources = mainSources.length > 0;
+    if (hasSources) {
+      console.log('updateMainSourcesCount', mainSources);
+      localStorage.setItem('currentMBtiles', mainSources[0].path);
     }
   }
 
-  async function createMap({ key, path, json_url }) {
+  async function addRasterMBtiles(
+    resultMap: Map,
+    { key, path, json_url, source_id },
+    sourceData,
+    createSourceLayer = true
+  ) {
+    if (!sourceData) {
+      sourceData = await (await fetch(json_url)).json();
+    }
+    sourceData.path = path;
+    function onMapLoaded() {
+      if (createSourceLayer) {
+        resultMap.addSource(sourceData.id, {
+          type: 'raster',
+          tiles: sourceData.tiles,
+
+          minzoom: sourceData.minzoom,
+          maxzoom: sourceData.maxzoom,
+          attribution: sourceData.attribution || '',
+        });
+        resultMap.addLayer({
+          id: sourceData.id + '-layer',
+          type: 'raster',
+          source: sourceData.id,
+          minzoom: 0,
+          maxzoom: 24,
+        });
+      }
+        sourceData.layers = {
+          rasters: [sourceData.id + '-layer'],
+        };
+      if (key === 'main') {
+        mainSources.push(sourceData);
+        mainSources = mainSources;
+      } else {
+        secondarySources.push(sourceData);
+        secondarySources = secondarySources;
+      }
+      updateMainSourcesCount();
+    }
+    if (resultMap.loaded()) {
+      onMapLoaded();
+    } else {
+      resultMap.once('load', onMapLoaded);
+    }
+  }
+  async function addVectorMBtiles(resultMap: Map, { key, path, json_url, source_id }, vectorData) {
+    if (!vectorData) {
+      vectorData = await (await fetch(json_url)).json();
+    }
+    vectorData.path = path;
+    console.log('addVectorMBtiles', vectorData);
+
+    function onMapLoaded() {
+      const sId = vectorData.id;
+      resultMap.addSource(sId, {
+        type: 'vector',
+        url: json_url,
+      });
+      const layers = (vectorData.layers = {
+        points: [],
+        rasters: [],
+        lines: [],
+        polygons: [],
+        colors: {},
+      });
+      (vectorData.vector_layers || vectorData.Layer).forEach((l) => {
+        const layerColor = brightColor(l.id);
+        layers.colors[l.id] = layerColor;
+        addPolygonLayer(resultMap, sId, l.id, layerColor, layers);
+        addLineLayer(resultMap, sId, l.id, layerColor, layers);
+        addPointLayer(resultMap, sId, l.id, layerColor, layers);
+      });
+
+      if (key === 'main') {
+        mainSources.push(vectorData);
+        mainSources = mainSources;
+      } else {
+        secondarySources.push(vectorData);
+        secondarySources = secondarySources;
+      }
+      updateMainSourcesCount();
+    }
+    if (resultMap.loaded()) {
+      onMapLoaded();
+    } else {
+      resultMap.once('load', onMapLoaded);
+    }
+  }
+
+  async function createMap({ key, path, json_url, source_id }) {
     let containerKey = key;
     let resultMap: Map;
-    let result = await (await fetch(json_url)).json();
-
+    let sourceData = await (await fetch(json_url)).json();
     let center;
     let zoom;
     if (key === 'main') {
-      zoom = result.minzoom + (result.maxzoom - result.minzoom) / 2;
+      zoom = sourceData.minzoom + (sourceData.maxzoom - sourceData.minzoom) / 2;
       center =
-        result.center ?? result.bounds
+        sourceData.center ?? sourceData.bounds
           ? [
-              result.bounds[0] + (result.bounds[2] - result.bounds[0]) / 2,
-              result.bounds[3] + (result.bounds[1] - result.bounds[3]) / 2,
+              sourceData.bounds[0] + (sourceData.bounds[2] - sourceData.bounds[0]) / 2,
+              sourceData.bounds[3] + (sourceData.bounds[1] - sourceData.bounds[3]) / 2,
             ]
           : undefined;
     } else {
       zoom = map.getZoom();
       center = map.getCenter();
     }
-    if (result.vector_layers || result.Layer) {
+    console.log('createMap', { key, path, json_url, source_id }, sourceData);
+    if (sourceData.vector_layers || sourceData.Layer) {
+      // let newLayers: Layers = {
+      //   points: [],
+      //   lines: [],
+      //   rasters: [],
+      //   polygons: [],
+      //   colors: {},
+      // };
+      // if (key === 'main') {
+      //   mainLayers = newLayers;
+      // } else {
+      //   secondaryLayers = newLayers;
+      // }
       const styleSrc = await resolve(await resourceDir(), `_up_/resources/styles/${basemap}.json`);
-      const style: string = await readTextFile(styleSrc);
+      const styleStr: string = await readTextFile(styleSrc);
+      const style = JSON.parse(styleStr.replace('{{json_url}}', json_url));
+      const showBackground =
+        key === 'main' ? mainShowBackgroundLayer : secondaryShowBackgroundLayer;
+      style.layers.forEach((l) => {
+        l.layout = l.layout || {};
+        l.layout.visibility = showBackground ? 'visible' : 'none';
+      });
       resultMap = new Map({
         container: containerKey,
-        style: JSON.parse(style.replace('{{json_url}}', json_url)),
+        style,
         center,
         zoom,
         interactive: true,
       });
       resultMap.showTileBoundaries = wantTileBounds;
-
-      if (key === 'main') {
-        mainSources.push(result);
-        resultMap.on('mousemove', function (e) {
-          if (popupOnClick) {
-            return;
-          }
-          handlePopup(e);
-        });
-        resultMap.on('click', function (e) {
-          if (popupOnClick) {
-            handlePopup(e);
-          }
-        });
-      }
-
-      resultMap.on('load', () => {
-        // mapSources.push('mbtiles');
-        resultMap.addSource('mbtiles', {
-          type: 'vector',
-          url: json_url,
-        });
-        let newLayers = {
-          points: [],
-          lines: [],
-          polygons: [],
-          colors: {},
-        };
-        (result.vector_layers || result.Layer).forEach((l) => {
-          const layerColor = brightColor(l.id);
-          newLayers.colors[l.id] = layerColor;
-          addPolygonLayer(resultMap, l.id, layerColor, newLayers);
-          addLineLayer(resultMap, l.id, layerColor, newLayers);
-          addPointLayer(resultMap, l.id, layerColor, newLayers);
-        });
-        if (key === 'main') {
-          mainLayers = newLayers;
+      const popup = key === 'main' ? mainPopup : secondaryPopup;
+      resultMap.on('mousemove', function (e) {
+        const popupOnClick = key === 'main' ? mainPopupOnClick : secondaryPopupOnClick;
+        const sources = key === 'main' ? mainSources : secondarySources;
+        if (popupOnClick) {
+          return;
+        }
+        handlePopup(resultMap, sources, popup, e);
+      });
+      resultMap.on('click', function (e) {
+        const popupOnClick = key === 'main' ? mainPopupOnClick : secondaryPopupOnClick;
+        const sources = key === 'main' ? mainSources : secondarySources;
+        if (popupOnClick) {
+          handlePopup(resultMap, sources, popup, e);
         }
       });
+      addVectorMBtiles(resultMap, { key, path, json_url, source_id }, sourceData);
     } else {
+      // addRasterMBtiles(resultMap, {key, path, json_url}, sourceData);
       resultMap = new Map({
         container: containerKey,
         style: {
           version: 8,
           sources: {
-            'raster-tiles': {
+            [sourceData.id]: {
               type: 'raster',
-              tiles: result.tiles,
+              tiles: sourceData.tiles,
 
-              minzoom: result.minzoom,
-              maxzoom: result.maxzoom,
-              attribution: result.attribution || '',
+              minzoom: sourceData.minzoom,
+              maxzoom: sourceData.maxzoom,
+              attribution: sourceData.attribution || '',
             },
           },
           layers: [
             {
-              id: 'simple-tiles',
+              id: sourceData.id + '-layer',
               type: 'raster',
-              source: 'raster-tiles',
+              source: sourceData.id,
               minzoom: 0,
               maxzoom: 24,
             } as any,
           ],
         },
-        center:
-          result.center ?? result.bounds
-            ? [
-                result.bounds[0] + (result.bounds[2] - result.bounds[0]) / 2,
-                result.bounds[3] + (result.bounds[1] - result.bounds[3]) / 2,
-              ]
-            : undefined,
-        zoom: result.minzoom + (result.maxzoom - result.minzoom),
+        center,
+        zoom,
         interactive: true,
       });
+      addRasterMBtiles(resultMap, { key, path, json_url, source_id }, sourceData, false);
     }
 
     // if (key === 'main') {
-      resultMap.addControl(new ScaleControl({}), 'bottom-right');
-      resultMap.addControl(new RulerControl(), 'bottom-right');
-      resultMap.addControl(new CompassControl(), 'bottom-right');
-      resultMap.addControl(new ZoomControl(), 'bottom-right');
+    resultMap.addControl(new ScaleControl({}), 'top-right');
+    // resultMap.addControl(new RulerControl(), 'top-right');
+    resultMap.addControl(new CompassControl(), 'top-right');
+    resultMap.addControl(new ZoomControl(), 'top-right');
     // }
     return resultMap;
   }
@@ -432,6 +611,7 @@
     if (map) {
       try {
         map.remove();
+        hasSources = false;
       } catch (err) {
         console.error(err);
       }
@@ -452,15 +632,18 @@
   async function onMBTilesSet({
     path,
     json_url,
+    source_id,
     key,
   }: {
     path: string;
     json_url: string;
     key: string;
+    source_id: string;
   }) {
-    if (key === 'main') {
-      clearMainMap();
-    }
+    console.log('onMBTilesSet', path, json_url, source_id, key);
+    // if (key === 'main') {
+    //   clearMainMap();
+    // }
     clearSecondaryMap();
     if (compareMap) {
       compareMap.remove();
@@ -468,10 +651,25 @@
     }
     if (path) {
       if (key === 'main') {
-        map = await createMap({ key, path, json_url });
+        if (!hasSources) {
+          map = await createMap({ key, path, json_url, source_id });
+        } else {
+          let sourceData = await (await fetch(json_url)).json();
+          // console.log(
+          //   'onMBTilesSet main',
+          //   sourceData.id,
+          //   sourceData.vector_layers || sourceData.Laye
+          // );
+          if (sourceData.vector_layers || sourceData.Layer) {
+            addVectorMBtiles(map, { key, path, json_url, source_id }, sourceData);
+          } else {
+            addRasterMBtiles(map, { key, path, json_url, source_id }, sourceData);
+          }
+        }
       } else if (key === 'secondary') {
-        secondaryMap = await createMap({ key, path, json_url });
-        popupOnClick = true;
+        secondaryMap = await createMap({ key, path, json_url, source_id });
+        mainPopupOnClick = true;
+        secondaryPopupOnClick = true;
         compareMap = new Compare(map, secondaryMap, '#comparison-container', {
           // mousemove: true, // Optional. Set to true to enable swiping during cursor movement.
           // orientation: 'horizontal', // Optional. Sets the orientation of swiper to horizontal or vertical, defaults to vertical
@@ -481,6 +679,18 @@
     }
   }
 
+  async function addPrimaryMBTiles() {
+    try {
+      const resPath = await open({
+        filters: [],
+        multiple: false,
+        directory: false,
+      });
+      setupMBtiles(resPath, 'main');
+    } catch (error) {
+      console.error(error);
+    }
+  }
   async function selectSecondaryMBtiles() {
     try {
       const resPath = await open({
@@ -506,51 +716,100 @@
         break;
     }
   });
+  let theme: CarbonTheme = 'g90';
+
+  $: {
+    console.log('theme changed', theme);
+  }
 </script>
 
-<div class="drawer-container">
-  <Menu
-    layers={mainLayers}
-    sources={mainSources}
-    {map}
-    bind:wantPopup
-    bind:wantTileBounds
-    bind:popupOnClick
-    bind:showBackgroundLayer
-  />
+<Theme bind:theme persist persistKey="__carbon-theme" />
 
-  <AppContent id="app-content">
-    <FileDrop
-      style="position:absolute;z-index:100;"
-      extensions={['mbtiles', 'etiles']}
-      handleFiles={handleDroppedFile}
-      let:files
-    >
-      <div class="dropzone" class:droppable={files.length > 0}>
-        {#if files.length > 0}
-          <Title>Import Mbtiles : {files[0]}</Title>
-        {/if}
-      </div>
-    </FileDrop>
-    <div
-      style="position:absolute; width:100%;height:100%;display:flex;z-index:100;pointer-events:none;"
-    >
-      <Fab
-        color="primary"
-        on:click={selectSecondaryMBtiles}
-        style="align-self:flex-end;margin: 20px;pointer-events:auto;"
-      >
-        <Icon class="material-icons">horizontal_distribute</Icon>
-      </Fab>
-    </div>
-    {#if !currentMbTiles}
-      <Title id="no_mbtiles">{$_('drop_open_mbtiles')}</Title>
-    {/if}
-    <div id="comparison-container">
-      <div id="secondary" class="map" />
-      <div id="main" class="map" />
-    </div>
-  </AppContent>
+<div class="drawer-container">
+  <Header company="MBTiles" platformName="Viewer">
+    <svelte:fragment slot="skip-to-content">
+      <SkipToContent />
+    </svelte:fragment>
+    <HeaderUtilities>
+      <HeaderGlobalAction aria-label={$_('opens_split')} icon={SplitScreen16} on:click={selectSecondaryMBtiles}/>
+      <HeaderAction>
+        <Content>
+          <h3>{$_('settings')}</h3>
+          <Select labelText={$_('theme')} bind:selected={theme}>
+            <SelectItem value="white" text="White" />
+            <SelectItem value="g10" text="Gray 10" />
+            <SelectItem value="g80" text="Gray 80" />
+            <SelectItem value="g90" text="Gray 90" />
+            <SelectItem value="g100" text="Gray 100" />
+          </Select>
+        </Content>
+      </HeaderAction>
+    </HeaderUtilities>
+  </Header>
+
+  <div style="padding-top:3rem;flex:auto;">
+    <Split initialPrimarySize="270px" minPrimarySize="270px" minSecondarySize="50%">
+      <Menu
+        id="primary"
+        slot="primary"
+        mbtiles={mainSources}
+        {map}
+        on:add_source={() => addPrimaryMBTiles()}
+        on:remove_source={(event) => removeDataSource('main', event.detail)}
+        bind:wantPopup
+        bind:wantTileBounds
+        bind:popupOnClick={mainPopupOnClick}
+        bind:showBackgroundLayer={mainShowBackgroundLayer}
+      />
+      <svelte:fragment slot="secondary">
+        <Split
+          initialPrimarySize="100%"
+          minPrimarySize="50%"
+          splitterSize={secondaryMap ? '10px' : '0px'}
+        >
+          <div id="app-content" slot="primary">
+            <FileDrop
+              style="position:absolute;z-index:100;"
+              extensions={['mbtiles', 'etiles']}
+              handleFiles={handleDroppedFile}
+              let:files
+            >
+              <div class="dropzone" class:droppable={files.length > 0}>
+                {#if files.length > 0}
+                  <h1>Import Mbtiles : {files[0]}</h1>
+                {/if}
+              </div>
+            </FileDrop>
+            <!-- <div
+              style="position:absolute; width:100%;height:100%;display:flex;z-index:100;pointer-events:none;"
+            >
+            </div> -->
+            {#if !hasSources}
+              <h1 id="no_mbtiles">{$_('drop_open_mbtiles')}</h1>
+            {/if}
+            <div id="comparison-container">
+              <div id="secondary" class="map" />
+              <div id="main" class="map" />
+            </div>
+          </div>
+          <svelte:fragment slot="secondary">
+            {#if secondaryMap}
+              <Menu
+                id="secondary"
+                on:remove_source={(event) => removeDataSource('secondary', event.detail)}
+                mbtiles={secondarySources}
+                map={secondaryMap}
+                bind:wantPopup
+                bind:wantTileBounds
+                bind:popupOnClick={secondaryPopupOnClick}
+                bind:showBackgroundLayer={secondaryShowBackgroundLayer}
+              />
+            {/if}
+          </svelte:fragment>
+        </Split>
+      </svelte:fragment>
+    </Split>
+  </div>
 </div>
 
 <style>
