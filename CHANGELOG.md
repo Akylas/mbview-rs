@@ -8,8 +8,8 @@ All notable changes to this project will be documented in this file. See [standa
 ### Features
 
 * new UI using carbon design with theme support ([10e6021](https://github.com/Akylas/mbview-rs/commit/10e60217a43aac78532f9574d890365fcc506a58))
-
-
+* allow to add/remove multiple mbtiles per panel
+* popup working in both panels
 
 ## [1.3.1](https://github.com/Akylas/mbview-rs/compare/v1.3.0...v1.3.1) (2022-03-19)
 
