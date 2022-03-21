@@ -103,6 +103,6 @@ jobs:
       - name: Update release
         uses: irongut/EditRelease@v1.1.0
         with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           id: ${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}
           draft: false
