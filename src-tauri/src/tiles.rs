@@ -133,6 +133,7 @@ pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) 
       Err(err) => println!("error unwatch {}", err),
     }
     let watch_key = key.clone();
+    // println!("set_mbtiles {}", path.clone().to_str().unwrap());
     WATCHER
       .lock()
       .unwrap()
@@ -160,6 +161,7 @@ pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) 
     let mut hash_data = TILESET_MAP.lock().unwrap();
     hash_data.insert(key.clone(), data);
     let watch_key = key.clone();
+    // println!("set_mbtiles {}", path.clone().to_str().unwrap());
     WATCHER
       .lock()
       .unwrap()

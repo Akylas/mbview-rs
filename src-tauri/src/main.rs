@@ -8,6 +8,7 @@ extern crate hyper;
 extern crate r2d2;
 extern crate r2d2_sqlite;
 extern crate regex;
+extern crate md5;
 
 mod errors;
 mod server;
@@ -39,6 +40,7 @@ struct Payload {
 #[derive(Clone, serde::Serialize)]
 struct MBtilesEventPayload {
   key: String,
+  source_id: String,
   path: Option<String>,
   json_url: Option<String>,
 }
@@ -49,17 +51,19 @@ fn setup_mbtiles(key: String, path: Option<String>, window: Window) {
     return;
   }
   let window_ = window.clone();
+  let mb_tiles_id = format!("{:x}",md5::compute(path.clone().unwrap().as_bytes()));
+  // println!("mbTilesId {} {}", path.clone().unwrap(), mb_tiles_id);
   set_mbtiles(
-    &key,
+    &mb_tiles_id,
     PathBuf::from(path.unwrap().clone()),
-    Box::new(move |key| {
+    Box::new(move |mb_tiles_id| {
       window_
-        .emit_all("reload-mbtiles", Payload { message: key })
+        .emit_all("reload-mbtiles", Payload { message: mb_tiles_id })
         .unwrap()
     }),
   );
   let file_path = Some(
-    get_path(&key)
+    get_path(&mb_tiles_id)
       .unwrap()
       .into_os_string()
       .into_string()
@@ -70,6 +74,7 @@ fn setup_mbtiles(key: String, path: Option<String>, window: Window) {
       "mbtiles",
       MBtilesEventPayload {
         key: key.clone(),
+        source_id: mb_tiles_id.clone(),
         path: file_path.clone(),
         json_url: if file_path.is_none() {
           None
@@ -77,7 +82,7 @@ fn setup_mbtiles(key: String, path: Option<String>, window: Window) {
           Some(format!(
             "http://localhost:{}/{}/tiles.json",
             PORT.to_string(),
-            key
+            mb_tiles_id.clone()
           ))
         },
       },
@@ -132,15 +137,10 @@ fn main() {
       MenuEntry::Submenu(Submenu::new(
         "Edit",
         Menu::with_items([
-          MenuItem::Undo.into(),
-          MenuItem::Redo.into(),
           MenuItem::Separator.into(),
-          MenuItem::Cut.into(),
           MenuItem::Copy.into(),
-          MenuItem::Paste.into(),
           #[cfg(not(target_os = "macos"))]
           MenuItem::Separator.into(),
-          MenuItem::SelectAll.into(),
         ]),
       )),
       MenuEntry::Submenu(Submenu::new(

@@ -6,19 +6,19 @@ use regex::Regex;
 use serde_json::json;
 
 use crate::errors::Result;
-use crate::tiles::{get_tile_data, get_data};
+use crate::tiles::{get_data, get_tile_data};
 use crate::utils::{decode, get_blank_image, get_data_format, DataFormat};
 
 lazy_static! {
-  static ref TILE_URL_RE: Regex =
-    Regex::new(r"^/(?P<tile_path>.*)/tiles/(?P<z>\d+)/(?P<x>\d+)/(?P<y>\d+)\.(?P<format>[a-zA-Z]+)")
-      .unwrap();
+  static ref TILE_URL_RE: Regex = Regex::new(
+    r"^/(?P<tile_path>.*)/tiles/(?P<z>\d+)/(?P<x>\d+)/(?P<y>\d+)\.(?P<format>[a-zA-Z]+)"
+  )
+  .unwrap();
   static ref META_URL_RE: Regex = Regex::new(r"^/(?P<tile_path>.*)/tiles.json").unwrap();
 }
 
 #[allow(dead_code)]
 static INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
-// static FORBIDDEN: &[u8] = b"Forbidden";
 static NOT_FOUND: &[u8] = b"Not Found";
 static NO_CONTENT: &[u8] = b"";
 
@@ -36,13 +36,6 @@ fn no_content() -> Response<Body> {
     .unwrap()
 }
 
-// fn forbidden() -> Response<Body> {
-//   Response::builder()
-//     .status(StatusCode::FORBIDDEN)
-//     .body(FORBIDDEN.into())
-//     .unwrap()
-// }
-
 #[allow(dead_code)]
 fn server_error() -> Response<Body> {
   Response::builder()
@@ -50,13 +43,6 @@ fn server_error() -> Response<Body> {
     .body(INTERNAL_SERVER_ERROR.into())
     .unwrap()
 }
-
-// fn bad_request(msg: String) -> Response<Body> {
-//   Response::builder()
-//     .status(StatusCode::BAD_REQUEST)
-//     .body(Body::from(msg))
-//     .unwrap()
-// }
 
 fn get_host(req: &Request<Body>) -> Option<&str> {
   let host = req.uri().host();
@@ -71,32 +57,7 @@ fn get_host(req: &Request<Body>) -> Option<&str> {
   None
 }
 
-// fn is_host_valid(host: &Option<&str>, allowed_hosts: &[String]) -> bool {
-//   if host.is_none() {
-//     return false;
-//   }
-
-//   let host = host.unwrap().split(':').next().unwrap();
-//   for pattern in allowed_hosts.iter() {
-//     if pattern == "*" || pattern == host {
-//       return true;
-//     }
-//     if pattern.starts_with('.') {
-//       let mut pattern = pattern.clone();
-//       let pattern = pattern.split_off(1);
-//       if host.ends_with(&pattern) {
-//         return true;
-//       }
-//     }
-//   }
-
-//   false
-// }
-
 pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
-  // if !is_host_valid(&host, &allowed_hosts) {
-  //     return Ok(forbidden());
-  // };
   let uri = request.uri();
   let path = uri.path();
   // println!("get_service {}", path);
@@ -156,7 +117,7 @@ pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
           let tile_path = matches.name("tile_path").unwrap().as_str();
           let tile_meta = get_data(&tile_path.to_string()).unwrap();
           let mut tile_meta_json = json!({
-              "name": tile_meta.name,
+              "name":  if tile_meta.name.is_some() { tile_meta.name.clone() } else { Some(tile_meta.id.clone()) } ,
               "version": tile_meta.version,
               "tiles": vec![format!(
                   "http://{}/{}/tiles/{{z}}/{{x}}/{{y}}.{}",
@@ -166,7 +127,7 @@ pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
               )],
               "tilejson": tile_meta.tilejson,
               "scheme": tile_meta.scheme,
-              "id": tile_meta.id,
+              "id": tile_path.clone(),
               "format": tile_meta.tile_format,
               "bounds": tile_meta.bounds,
               "center": tile_meta.center,
