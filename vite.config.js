@@ -35,15 +35,18 @@ export default defineConfig(({ command, mode }) => {
         'mapbox-gl': 'maplibre-gl',
       },
     },
-    optimizeDeps: {
-      // include: ['geo-three']
-    },
+    optimizeDeps: {},
+    // to make use of `TAURI_PLATFORM`, `TAURI_ARCH`, `TAURI_FAMILY`, `TAURI_PLATFORM_VERSION`, `TAURI_PLATFORM_TYPE` and `TAURI_DEBUG` env variables
+    envPrefix: ['VITE_', 'TAURI_'],
     build: {
       outDir: '../build',
       emptyOutDir: true,
-      minify: true,
-      sourcemap: false,
-      target: 'modules',
+      // tauri supports es2021
+      target: ['es2021', 'chrome97', 'safari13'],
+      // don't minify for debug builds
+      minify: !process.env.TAURI_DEBUG && 'esbuild',
+      // produce sourcemaps for debug builds
+      sourcemap: !!process.env.TAURI_DEBUG,
     },
     plugins: [
       svelte({
