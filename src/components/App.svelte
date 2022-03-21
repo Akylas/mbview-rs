@@ -1,8 +1,6 @@
 <script lang="ts">
   import Compare from '@maplibre/maplibre-gl-compare';
   import '@maplibre/maplibre-gl-compare/dist/maplibre-gl-compare.css';
-  import { Icon } from '@smui/common';
-  import Fab from '@smui/fab';
   import { invoke } from '@tauri-apps/api';
   import { open } from '@tauri-apps/api/dialog';
   import { listen, UnlistenFn } from '@tauri-apps/api/event';
