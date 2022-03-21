@@ -13,7 +13,6 @@
   import { randomColor } from 'randomcolor';
   import { onDestroy, onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
-  import 'svelte-material-ui/bare.css';
   import FileDrop from 'svelte-tauri-filedrop';
   import Menu from './Menu.svelte';
   import { ScaleControl } from './ScaleControl';
