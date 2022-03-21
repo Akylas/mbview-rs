@@ -1,5 +1,3 @@
-console.log('test')
-
 const tracker = {
   filename: './src-tauri/Cargo.toml',
   updater: require('./tauriVersioner')
