@@ -45,15 +45,6 @@
     const layers = source.layers;
     const prefix = `___${sId}___${layerId}`;
     const visible = sourceVisible && (layersVisibility[prefix] ?? true);
-    console.log(
-      'applyLayerVisibility',
-      sId,
-      layerId,
-      prefix,
-      sourceVisible,
-      visible,
-      layers.rasters
-    );
     layers.polygons
       ?.filter((s) => s.startsWith(prefix))
       .forEach((l) => {
@@ -191,7 +182,7 @@
     <HeaderPanelDivider />
     <Checkbox bind:checked={showBackgroundLayer} labelText={$_('show_background_layer')} />
     <Checkbox bind:checked={wantPopup} labelText={$_('show_attribute_popup')} />
-    <Checkbox bind:checked={popupOnClick} labelText={$_('show_popup_only_click')} />
+    <!-- <Checkbox bind:checked={popupOnClick} labelText={$_('show_popup_only_click')} /> -->
   {/if}
   <Checkbox bind:checked={wantTileBounds} labelText={$_('show_tile_boundaries')} />
   <HeaderPanelDivider />

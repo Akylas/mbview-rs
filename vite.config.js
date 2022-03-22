@@ -35,7 +35,9 @@ export default defineConfig(({ command, mode }) => {
         'mapbox-gl': 'maplibre-gl',
       },
     },
-    optimizeDeps: {},
+    optimizeDeps: {
+      include: ['highlight.js', 'highlight.js/lib/core'],
+    },
     // to make use of `TAURI_PLATFORM`, `TAURI_ARCH`, `TAURI_FAMILY`, `TAURI_PLATFORM_VERSION`, `TAURI_PLATFORM_TYPE` and `TAURI_DEBUG` env variables
     envPrefix: ['VITE_', 'TAURI_'],
     build: {

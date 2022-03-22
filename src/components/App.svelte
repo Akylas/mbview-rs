@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Split from '@geoffcox/svelte-splitter/src/Split.svelte';
   import Compare from '@maplibre/maplibre-gl-compare';
   import '@maplibre/maplibre-gl-compare/dist/maplibre-gl-compare.css';
   import { invoke } from '@tauri-apps/api';
@@ -7,19 +8,9 @@
   import { readTextFile } from '@tauri-apps/api/fs';
   import { resolve, resourceDir } from '@tauri-apps/api/path';
   import { open as openURl } from '@tauri-apps/api/shell';
-  import { CompassControl, RulerControl, ZoomControl } from 'mapbox-gl-controls';
-  import { Map, Popup } from 'maplibre-gl';
-  import 'maplibre-gl/dist/maplibre-gl.css';
-  import { randomColor } from 'randomcolor';
-  import { onDestroy, onMount } from 'svelte';
-  import { _ } from 'svelte-i18n';
-  import FileDrop from 'svelte-tauri-filedrop';
-  import Menu from './Menu.svelte';
-  import { ScaleControl } from './ScaleControl';
-  import Split from '@geoffcox/svelte-splitter/src/Split.svelte';
-  import SplitScreen16 from 'carbon-icons-svelte/lib/SplitScreen16';
   import {
     Content,
+    DataTable,
     Header,
     HeaderAction,
     HeaderGlobalAction,
@@ -30,68 +21,47 @@
     Theme,
   } from 'carbon-components-svelte';
   import type { CarbonTheme } from 'carbon-components-svelte/types/Theme/Theme.svelte';
+  import SplitScreen16 from 'carbon-icons-svelte/lib/SplitScreen16';
+  import OpenPanelBottom16 from 'carbon-icons-svelte/lib/OpenPanelBottom16';
+  import { CompassControl, ZoomControl } from 'mapbox-gl-controls';
+  import { Map } from 'maplibre-gl';
+  import 'maplibre-gl/dist/maplibre-gl.css';
+  import { randomColor } from 'randomcolor';
+  import { onDestroy, onMount } from 'svelte';
+  import { _ } from 'svelte-i18n';
+  import FileDrop from 'svelte-tauri-filedrop';
+  import type { Feature } from './Map';
+  import MapPopup from './MapPopup.svelte';
+  import Menu from './Menu.svelte';
+  import { ScaleControl } from './ScaleControl';
+  import Highlight from 'svelte-highlight';
+  import json from 'svelte-highlight/src/languages/json';
+  import dark from 'svelte-highlight/src/styles/nnfx-dark';
+  import light from 'svelte-highlight/src/styles/nnfx-light';
 
   let map: Map = null;
   let secondaryMap: Map = null;
   let compareMap: Compare;
   let wantTileBounds = false;
-  let mainPopupOnClick = false;
-  let secondaryPopupOnClick = false;
+  let mainPopupOnClick = true;
+  let secondaryPopupOnClick = true;
   let mainShowBackgroundLayer = false;
   let secondaryShowBackgroundLayer = false;
+  let showBottomPanel = false;
   let basemap = 'basic';
+  let bottomSplit: Split;
   // let mapLayers: string[] = [];
   // let mapSources: string[] = [];
   let unlistener: UnlistenFn;
   let unlistenerReload: UnlistenFn;
 
-  // $: {
-  //   if (!popupOnClick) {
-  //     popup._onClose();
-  //   }
-  // }
-  interface Layers {
-    points: string[];
-    lines: string[];
-    rasters: string[];
-    polygons: string[];
-    colors: {};
-  }
-
-  let mainPopup = new Popup({
-    closeButton: false,
-    closeOnClick: false,
-    className: 'map_popup',
-    // closeOnMove: false,
-  });
-  let secondaryPopup = new Popup({
-    closeButton: false,
-    closeOnClick: false,
-    className: 'map_popup',
-    // closeOnMove: false,
-  });
-
-  // let mainLayers: Layers = {
-  //   points: [],
-  //   rasters: [],
-  //   lines: [],
-  //   polygons: [],
-  //   colors: {},
-  // };
+  let mainFeatures: Feature[];
+  let secondaryFeatures: Feature[];
   let mainSources = [];
-  // let secondaryLayers: Layers = {
-  //   points: [],
-  //   rasters: [],
-  //   lines: [],
-  //   polygons: [],
-  //   colors: {},
-  // };
   let secondarySources = [];
   let wantPopup = true;
 
-  // const tilesJSON = 'http://localhost:9782/test/tiles.json';
-  // const tilesJSON = 'http://localhost:8082/data/data.json';
-
+  // $: console.log('mainFeatures', mainFeatures);
   onMount(async () => {
     // const styleSrc = await resolve(await resourceDir(), '../resources/styles/streets.json');
     // console.log('test', styleSrc)
@@ -258,121 +228,12 @@
     });
   }
 
-  function displayValue(value, propName) {
-    if (propName === '@timestamp') {
-      return value.toString() + '<br>[ ' + new Date(value * 1000).toISOString() + ' ]';
-    }
-    if (typeof value === 'undefined' || value === null) return value;
-    if (typeof value === 'object' || typeof value === 'number' || typeof value === 'string')
-      return value.toString();
-    return value;
-  }
-
-  function renderProperty(propertyName, property) {
-    return (
-      '<div class="mbview_property">' +
-      '<div class="mbview_property-name">' +
-      propertyName +
-      '</div>' +
-      '<div class="mbview_property-value">' +
-      displayValue(property, propertyName) +
-      '</div>' +
-      '</div>'
-    );
-  }
-
-  function renderLayer(layers: Layers, layerId) {
-    return `<div class="mbview_layer" style="color:${layers.colors[layerId]};">${layerId}</div>`;
-  }
-
-  function renderProperties(layers: Layers, feature) {
-    var sourceProperty = renderLayer(layers, feature.layer['source-layer'] || feature.layer.source);
-    var idProperty = renderProperty('$id', feature.id);
-    var typeProperty = renderProperty('$type', feature.geometry.type);
-    var properties = Object.keys(feature.properties).map(function (propertyName) {
-      return renderProperty(propertyName, feature.properties[propertyName]);
-    });
-    return (
-      feature.id ? [sourceProperty, idProperty, typeProperty] : [sourceProperty, typeProperty]
-    )
-      .concat(properties)
-      .join('');
-  }
-
-  function renderFeatures(layers: Layers, features) {
-    return features
-      .map(function (ft) {
-        return '<div class="mbview_feature">' + renderProperties(layers, ft) + '</div>';
-      })
-      .join('');
-  }
-
-  function renderPopup(layers: Layers, features) {
-    return '<div class="mbview_popup">' + renderFeatures(layers, features) + '</div>';
-  }
-
-  function handlePopup(map: Map, sources: { layers: Layers }[], popup: Popup, e) {
-    if (!sources) {
-      return;
-    }
-    // set a bbox around the pointer
-    var selectThreshold = 3;
-    var queryBox = [
-      [e.point.x - selectThreshold, e.point.y + selectThreshold], // bottom left (SW)
-      [e.point.x + selectThreshold, e.point.y - selectThreshold], // top right (NE)
-    ];
-
-    const layers = sources.reduce(
-      (prev, curr) => {
-        const layer = curr.layers;
-        if (layer.points) {
-          prev.points.push(...layer.points);
-        }
-        if (layer.lines) {
-          prev.lines.push(...layer.lines);
-        }
-        if (layer.polygons) {
-          prev.polygons.push(...layer.polygons);
-        }
-        if (layer.rasters) {
-          prev.rasters.push(...layer.rasters);
-        }
-        if (layer.colors) {
-          Object.keys(layer.colors).forEach((c) => {
-            if (!prev.colors[c]) {
-              prev.colors[c] = layer.colors[c];
-            }
-          });
-        }
-        return prev;
-      },
-      {
-        points: [],
-        rasters: [],
-        lines: [],
-        polygons: [],
-        colors: {},
-      }
-    );
-
-    var features =
-      map.queryRenderedFeatures(queryBox, {
-        layers: layers.polygons.concat(layers.lines.concat(layers.points)),
-      }) || [];
-    map.getCanvas().style.cursor = features.length ? 'pointer' : '';
-
-    if (!features.length || !wantPopup) {
-      popup.remove();
-    } else {
-      popup.setLngLat(e.lngLat).setHTML(renderPopup(layers, features)).addTo(map);
-    }
-  }
   async function removeDataSource(key, source) {
     const resultMap = key === 'main' ? map : secondaryMap;
     const layers = source.layers;
     console.log('removeDataSource', key, source, Object.keys(resultMap.style._layers));
-    const layerIds = Object.keys(resultMap.style._layers).filter((s) =>
-      s.startsWith(`___${source.id}`) || s === `${source.id}-layer`
+    const layerIds = Object.keys(resultMap.style._layers).filter(
+      (s) => s.startsWith(`___${source.id}`) || s === `${source.id}-layer`
     );
     console.log('layerIds', layerIds);
     layerIds.forEach((s) => {
@@ -400,7 +261,6 @@
   function updateMainSourcesCount() {
     hasSources = mainSources.length > 0;
     if (hasSources) {
-      console.log('updateMainSourcesCount', mainSources);
       localStorage.setItem('currentMBtiles', mainSources[0].path);
     }
   }
@@ -433,9 +293,9 @@
           maxzoom: 24,
         });
       }
-        sourceData.layers = {
-          rasters: [sourceData.id + '-layer'],
-        };
+      sourceData.layers = {
+        rasters: [sourceData.id + '-layer'],
+      };
       if (key === 'main') {
         mainSources.push(sourceData);
         mainSources = mainSources;
@@ -456,7 +316,6 @@
       vectorData = await (await fetch(json_url)).json();
     }
     vectorData.path = path;
-    console.log('addVectorMBtiles', vectorData);
 
     function onMapLoaded() {
       const sId = vectorData.id;
@@ -514,7 +373,6 @@
       zoom = map.getZoom();
       center = map.getCenter();
     }
-    console.log('createMap', { key, path, json_url, source_id }, sourceData);
     if (sourceData.vector_layers || sourceData.Layer) {
       // let newLayers: Layers = {
       //   points: [],
@@ -545,22 +403,6 @@
         interactive: true,
       });
       resultMap.showTileBoundaries = wantTileBounds;
-      const popup = key === 'main' ? mainPopup : secondaryPopup;
-      resultMap.on('mousemove', function (e) {
-        const popupOnClick = key === 'main' ? mainPopupOnClick : secondaryPopupOnClick;
-        const sources = key === 'main' ? mainSources : secondarySources;
-        if (popupOnClick) {
-          return;
-        }
-        handlePopup(resultMap, sources, popup, e);
-      });
-      resultMap.on('click', function (e) {
-        const popupOnClick = key === 'main' ? mainPopupOnClick : secondaryPopupOnClick;
-        const sources = key === 'main' ? mainSources : secondarySources;
-        if (popupOnClick) {
-          handlePopup(resultMap, sources, popup, e);
-        }
-      });
       addVectorMBtiles(resultMap, { key, path, json_url, source_id }, sourceData);
     } else {
       // addRasterMBtiles(resultMap, {key, path, json_url}, sourceData);
@@ -637,7 +479,6 @@
     key: string;
     source_id: string;
   }) {
-    console.log('onMBTilesSet', path, json_url, source_id, key);
     // if (key === 'main') {
     //   clearMainMap();
     // }
@@ -718,9 +559,77 @@
   $: {
     console.log('theme changed', theme);
   }
+
+  let bottomPanelPercent = 75;
+  function onBottomSplitChanged(e) {
+    if (showBottomPanel) {
+      bottomPanelPercent = e.detail.percent;
+    }
+    map?.resize();
+    secondaryMap?.resize();
+  }
+  function switchBottomPanel() {
+    showBottomPanel = !showBottomPanel;
+    if (showBottomPanel) {
+      bottomSplit.setPercent(bottomPanelPercent);
+    } else {
+      bottomSplit.setPercent(100);
+    }
+  }
+
+  let mainFeaturesHeaders;
+  let mainFeaturesData;
+  $: {
+    if (mainFeatures?.length > 0) {
+      mainFeaturesData = [];
+      mainFeaturesHeaders = [
+        {
+          key: 'layer',
+          value: 'layer',
+        },
+        {
+          key: '$type',
+          value: '$type',
+        },
+        {
+          key: '$id',
+          value: '$id',
+        },
+      ];
+      let seenKeys = mainFeaturesHeaders.map((h) => h.key);
+      let seenFeatures = [];
+      mainFeatures.forEach((f) => {
+        Object.keys(f.properties).forEach((k) => {
+          if (seenKeys.indexOf(k) === -1) {
+            seenKeys.push(k);
+            mainFeaturesHeaders.push({ key: k, value: k });
+          }
+        });
+        if (seenFeatures.indexOf(f.id) === -1) {
+          seenFeatures.push(f.id);
+
+          mainFeaturesData.push({
+            id: f.id,
+            layer: f.sourceLayer,
+            $type: f.type,
+            $id: f.id,
+            ...f.properties,
+            data: f,
+          });
+        }
+      });
+    }
+  }
 </script>
 
 <Theme bind:theme persist persistKey="__carbon-theme" />
+<svelte:head>
+  {#if theme === 'white'}
+    {@html light}
+  {:else}
+    {@html dark}
+  {/if}
+</svelte:head>
 
 <div class="drawer-container">
   <Header company="MBTiles" platformName="Viewer">
@@ -728,7 +637,16 @@
       <SkipToContent />
     </svelte:fragment>
     <HeaderUtilities>
-      <HeaderGlobalAction aria-label={$_('opens_split')} icon={SplitScreen16} on:click={selectSecondaryMBtiles}/>
+      <HeaderGlobalAction
+        aria-label={$_('opens_split')}
+        icon={SplitScreen16}
+        on:click={selectSecondaryMBtiles}
+      />
+      <HeaderGlobalAction
+        aria-label={$_('open_bottom_panel')}
+        icon={OpenPanelBottom16}
+        on:click={switchBottomPanel}
+      />
       <HeaderAction>
         <Content>
           <h3>{$_('settings')}</h3>
@@ -745,65 +663,110 @@
   </Header>
 
   <div style="padding-top:3rem;flex:auto;">
-    <Split initialPrimarySize="270px" minPrimarySize="270px" minSecondarySize="50%">
-      <Menu
-        id="primary"
+    <Split
+      on:changed={onBottomSplitChanged}
+      bind:this={bottomSplit}
+      horizontal
+      initialPrimarySize="100%"
+      minPrimarySize="50%"
+      splitterSize={showBottomPanel ? '10px' : '0px'}
+    >
+      <Split
         slot="primary"
-        mbtiles={mainSources}
-        {map}
-        on:add_source={() => addPrimaryMBTiles()}
-        on:remove_source={(event) => removeDataSource('main', event.detail)}
-        bind:wantPopup
-        bind:wantTileBounds
-        bind:popupOnClick={mainPopupOnClick}
-        bind:showBackgroundLayer={mainShowBackgroundLayer}
-      />
-      <svelte:fragment slot="secondary">
-        <Split
-          initialPrimarySize="100%"
-          minPrimarySize="50%"
-          splitterSize={secondaryMap ? '10px' : '0px'}
-        >
-          <div id="app-content" slot="primary">
-            <FileDrop
-              style="position:absolute;z-index:100;"
-              extensions={['mbtiles', 'etiles']}
-              handleFiles={handleDroppedFile}
-              let:files
-            >
-              <div class="dropzone" class:droppable={files.length > 0}>
-                {#if files.length > 0}
-                  <h1>Import Mbtiles : {files[0]}</h1>
-                {/if}
-              </div>
-            </FileDrop>
-            <!-- <div
+        initialPrimarySize="270px"
+        minPrimarySize="270px"
+        minSecondarySize="50%"
+      >
+        <Menu
+          id="primary"
+          slot="primary"
+          mbtiles={mainSources}
+          {map}
+          on:add_source={() => addPrimaryMBTiles()}
+          on:remove_source={(event) => removeDataSource('main', event.detail)}
+          bind:wantPopup
+          bind:wantTileBounds
+          bind:popupOnClick={mainPopupOnClick}
+          bind:showBackgroundLayer={mainShowBackgroundLayer}
+        />
+        <svelte:fragment slot="secondary">
+          <Split
+            initialPrimarySize="100%"
+            minPrimarySize="50%"
+            splitterSize={secondaryMap ? '10px' : '0px'}
+          >
+            <div id="app-content" slot="primary">
+              <FileDrop
+                extensions={['mbtiles', 'etiles']}
+                handleFiles={handleDroppedFile}
+                let:files
+              >
+                <div class="dropzone" class:droppable={files.length > 0}>
+                  {#if files.length > 0}
+                    <h1 style:text-align="center" style:word-break="break-word">
+                      Import Mbtiles: <br />
+                      {files[0]}
+                    </h1>
+                  {/if}
+                </div>
+              </FileDrop>
+              <!-- <div
               style="position:absolute; width:100%;height:100%;display:flex;z-index:100;pointer-events:none;"
             >
             </div> -->
-            {#if !hasSources}
-              <h1 id="no_mbtiles">{$_('drop_open_mbtiles')}</h1>
-            {/if}
-            <div id="comparison-container">
-              <div id="secondary" class="map" />
-              <div id="main" class="map" />
+              {#if !hasSources}
+                <h1 id="no_mbtiles">{$_('drop_open_mbtiles')}</h1>
+              {/if}
+              <div id="comparison-container">
+                <div id="secondary" class="map">
+                  <MapPopup
+                    map={secondaryMap}
+                    sources={secondarySources}
+                    bind:features={secondaryFeatures}
+                    enabled={wantPopup}
+                    onlyOnClick={secondaryPopupOnClick}
+                  />
+                </div>
+                <div id="main" class="map">
+                  <MapPopup
+                    {map}
+                    sources={mainSources}
+                    bind:features={mainFeatures}
+                    enabled={wantPopup}
+                    onlyOnClick={mainPopupOnClick}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-          <svelte:fragment slot="secondary">
-            {#if secondaryMap}
-              <Menu
-                id="secondary"
-                on:remove_source={(event) => removeDataSource('secondary', event.detail)}
-                mbtiles={secondarySources}
-                map={secondaryMap}
-                bind:wantPopup
-                bind:wantTileBounds
-                bind:popupOnClick={secondaryPopupOnClick}
-                bind:showBackgroundLayer={secondaryShowBackgroundLayer}
+            <svelte:fragment slot="secondary">
+              {#if secondaryMap}
+                <Menu
+                  id="secondary"
+                  on:remove_source={(event) => removeDataSource('secondary', event.detail)}
+                  mbtiles={secondarySources}
+                  map={secondaryMap}
+                  bind:wantPopup
+                  bind:wantTileBounds
+                  bind:popupOnClick={secondaryPopupOnClick}
+                  bind:showBackgroundLayer={secondaryShowBackgroundLayer}
+                />
+              {/if}
+            </svelte:fragment>
+          </Split>
+        </svelte:fragment>
+      </Split>
+      <svelte:fragment slot="secondary">
+        <div style:height="100%" style:overflow="auto">
+          <DataTable class="canSelectText" size="short" expandable headers={mainFeaturesHeaders} rows={mainFeaturesData}>
+            <svelte:fragment slot="expanded-row" let:row>
+              <Highlight
+                class="canSelectText"
+                language={json}
+                code={JSON.stringify(row.data, null, 2)}
               />
-            {/if}
-          </svelte:fragment>
-        </Split>
+            </svelte:fragment>
+          </DataTable>
+        </div>
       </svelte:fragment>
     </Split>
   </div>

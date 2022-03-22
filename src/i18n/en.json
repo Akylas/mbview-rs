@@ -7,6 +7,7 @@
   "drop_open_mbtiles": "drop or open a MBtiles",
   "filters": "filters",
   "lines": "lines",
+  "open_bottom_panel": "show bottom panel",
   "opens_split": "open split MBTiles",
   "points": "points",
   "polygons": "polygons",

@@ -1,4 +1,9 @@
 import App from './components/App.svelte';
+import { sortBy } from './utils';
+
+Array.prototype.sortBy = function (cfg) {
+  return sortBy(this, cfg);
+};
 
 import { init, getLocaleFromNavigator, addMessages } from 'svelte-i18n';
 import './carbon.css';

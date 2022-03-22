@@ -67,47 +67,6 @@ body * {
 .maplibregl-ctrl-scale {
 text-align: right;
 }
-.mbview_popup  {
-  margin:10px;
-  color: #333;
-  display: table;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 10px;
-}
-
-.mbview_popup  * {
-  -webkit-touch-callout: text;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  user-select: text;
-}
-
-.mbview_feature:not(:last-child) {
-  border-bottom: 1px solid #ccc;
-}
-
-.mbview_layer:before {
-  content: '#';
-}
-
-.mbview_layer {
-  display: block;
-  font-weight: bold;
-}
-
-.mbview_property {
-  display: table-row;
-}
-
-.mbview_property-value {
-  display: table-cell;
-}
-
-.mbview_property-name {
-  display: table-cell;
-  padding-right: 10px;
-}
 
 #app-content {
   flex: auto;
@@ -217,4 +176,25 @@ text-align: right;
 .maplibregl-compare .compare-swiper-vertical {  
   background-color: transparent !important;
   background-image: none !important;
+}
+.bx--data-table  {
+  overflow-x: auto;
+}
+.bx--data-table tbody {
+  overflow-y: auto;
+}
+
+.canSelectText * {
+  -webkit-touch-callout: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+.mbview_popup * {
+  -webkit-touch-callout: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
 }
