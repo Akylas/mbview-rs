@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+# [1.5.0](https://github.com/Akylas/mbview-rs/compare/v1.4.0...v1.5.0) (2022-03-22)
+
+
+### Features
+
+* new bottom panel to show selected features ([8d9e5ce](https://github.com/Akylas/mbview-rs/commit/8d9e5ce5d6039132aad2b8752299a63a01b73509))
+
+
+
 ## [1.4.0](https://github.com/Akylas/mbview-rs/compare/v1.3.1...v1.4.0) (2022-03-21)
 
 
