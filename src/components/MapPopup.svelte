@@ -21,9 +21,11 @@
 
   $: {
     if (sources) {
+
       hasMultipleSources = Object.keys(sources).length > 1;
+ 
       colors = sources.reduce((prev, source) => {
-        Object.keys(source.layers.colors).forEach((c) => {
+        source.layers.colors && Object.keys(source.layers.colors).forEach((c) => {
           if (!prev[c]) {
             prev[c] = source.layers.colors[c];
           }

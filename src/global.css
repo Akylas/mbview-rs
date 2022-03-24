@@ -159,13 +159,13 @@ text-align: right;
 /* } */
 .bx--header-panel--expanded {
   background-color:#000000aa !important;
-  width: 20rem !important;
+  /* width: 20rem !important; */
 }
 .bx--header {
   background-color:#000000aa !important;
 }
 
-.bx--header__global :nth-child(1) {
+.bx--content {
   background-color:transparent !important;
 }
 
@@ -177,11 +177,21 @@ text-align: right;
   background-color: transparent !important;
   background-image: none !important;
 }
-.bx--data-table  {
+/* table  {
   overflow-x: auto;
 }
-.bx--data-table tbody {
+tbody {
   overflow-y: auto;
+} */
+
+th {
+  position: sticky !important;
+  z-index: 100 !important;
+  top: 0 !important;
+}
+
+select {
+  -webkit-appearance: none
 }
 
 .canSelectText * {

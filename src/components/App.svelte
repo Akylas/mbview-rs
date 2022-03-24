@@ -50,6 +50,7 @@
   let showBottomPanel = false;
   let basemap = 'basic';
   let bottomSplit: Split;
+  let secondarySplit: Split;
   // let mapLayers: string[] = [];
   // let mapSources: string[] = [];
   let unlistener: UnlistenFn;
@@ -231,28 +232,24 @@
   async function removeDataSource(key, source) {
     const resultMap = key === 'main' ? map : secondaryMap;
     const layers = source.layers;
-    console.log('removeDataSource', key, source, Object.keys(resultMap.style._layers));
     const layerIds = Object.keys(resultMap.style._layers).filter(
       (s) => s.startsWith(`___${source.id}`) || s === `${source.id}-layer`
     );
-    console.log('layerIds', layerIds);
     layerIds.forEach((s) => {
       resultMap.removeLayer(s);
       delete layers[s];
     });
     resultMap.removeSource(source.id);
     if (key === 'main') {
-      const index = mainSources.findIndex((s) => (s.id = source.id));
-      console.log('index', index);
+      const index = mainSources.findIndex((s) => s.id === source.id);
       if (index !== -1) {
         mainSources.splice(index, 1);
         mainSources = mainSources;
       }
       updateMainSourcesCount();
     } else {
-      const index = secondarySources.findIndex((s) => (s.id = source.id));
+      const index = secondarySources.findIndex((s) => s.id === source.id);
       if (index !== -1) {
-        console.log('index', index);
         secondarySources.splice(index, 1);
         secondarySources = secondarySources;
       }
@@ -275,6 +272,7 @@
       sourceData = await (await fetch(json_url)).json();
     }
     sourceData.path = path;
+
     function onMapLoaded() {
       if (createSourceLayer) {
         resultMap.addSource(sourceData.id, {
@@ -465,6 +463,11 @@
         console.error(err);
       }
       secondaryMap = null;
+      secondaryFeatures = [];
+      secondarySources = [];
+      secondarySplit.setPercent(100);
+    } else {
+      addMBTiles('secondary');
     }
   }
 
@@ -479,25 +482,22 @@
     key: string;
     source_id: string;
   }) {
+    // console.log('onMBTilesSet', path, json_url, source_id, key);
     // if (key === 'main') {
     //   clearMainMap();
     // }
-    clearSecondaryMap();
-    if (compareMap) {
-      compareMap.remove();
-      compareMap = null;
-    }
+    // clearSecondaryMap();
+    // if (compareMap) {
+    //   compareMap.remove();
+    //   compareMap = null;
+    // }
     if (path) {
       if (key === 'main') {
         if (!hasSources) {
           map = await createMap({ key, path, json_url, source_id });
         } else {
           let sourceData = await (await fetch(json_url)).json();
-          // console.log(
-          //   'onMBTilesSet main',
-          //   sourceData.id,
-          //   sourceData.vector_layers || sourceData.Laye
-          // );
+
           if (sourceData.vector_layers || sourceData.Layer) {
             addVectorMBtiles(map, { key, path, json_url, source_id }, sourceData);
           } else {
@@ -505,38 +505,35 @@
           }
         }
       } else if (key === 'secondary') {
-        secondaryMap = await createMap({ key, path, json_url, source_id });
-        mainPopupOnClick = true;
-        secondaryPopupOnClick = true;
-        compareMap = new Compare(map, secondaryMap, '#comparison-container', {
-          // mousemove: true, // Optional. Set to true to enable swiping during cursor movement.
-          // orientation: 'horizontal', // Optional. Sets the orientation of swiper to horizontal or vertical, defaults to vertical
-        });
-        compareMap.setSlider(500);
+        if (secondaryMap) {
+          let sourceData = await (await fetch(json_url)).json();
+          if (sourceData.vector_layers || sourceData.Layer) {
+            addVectorMBtiles(secondaryMap, { key, path, json_url, source_id }, sourceData);
+          } else {
+            addRasterMBtiles(secondaryMap, { key, path, json_url, source_id }, sourceData);
+          }
+        } else {
+          secondaryMap = await createMap({ key, path, json_url, source_id });
+          mainPopupOnClick = true;
+          secondaryPopupOnClick = true;
+          compareMap = new Compare(map, secondaryMap, '#comparison-container', {
+            // mousemove: true, // Optional. Set to true to enable swiping during cursor movement.
+            // orientation: 'horizontal', // Optional. Sets the orientation of swiper to horizontal or vertical, defaults to vertical
+          });
+          compareMap.setSlider(500);
+        }
       }
     }
   }
 
-  async function addPrimaryMBTiles() {
+  async function addMBTiles(key) {
     try {
       const resPath = await open({
         filters: [],
         multiple: false,
         directory: false,
       });
-      setupMBtiles(resPath, 'main');
-    } catch (error) {
-      console.error(error);
-    }
-  }
-  async function selectSecondaryMBtiles() {
-    try {
-      const resPath = await open({
-        filters: [],
-        multiple: false,
-        directory: false,
-      });
-      setupMBtiles(resPath, 'secondary');
+      setupMBtiles(resPath, key);
     } catch (error) {
       console.error(error);
     }
@@ -556,10 +553,6 @@
   });
   let theme: CarbonTheme = 'g90';
 
-  $: {
-    console.log('theme changed', theme);
-  }
-
   let bottomPanelPercent = 75;
   function onBottomSplitChanged(e) {
     if (showBottomPanel) {
@@ -576,13 +569,25 @@
       bottomSplit.setPercent(100);
     }
   }
+  function switchCompareView() {
+    if (compareMap) {
+      clearSecondaryMap();
+      if (compareMap) {
+        compareMap.remove();
+        compareMap = null;
+      }
+    } else {
+      addMBTiles('secondary');
+    }
+  }
 
-  let mainFeaturesHeaders;
-  let mainFeaturesData;
-  $: {
-    if (mainFeatures?.length > 0) {
-      mainFeaturesData = [];
-      mainFeaturesHeaders = [
+  let selectedFeaturesHeaders;
+  let selectedFeaturesData;
+
+  function handleSelectedFeatures(features) {
+    if (features?.length > 0) {
+      selectedFeaturesData = [];
+      selectedFeaturesHeaders = [
         {
           key: 'layer',
           value: 'layer',
@@ -596,19 +601,19 @@
           value: '$id',
         },
       ];
-      let seenKeys = mainFeaturesHeaders.map((h) => h.key);
+      let seenKeys = selectedFeaturesHeaders.map((h) => h.key);
       let seenFeatures = [];
-      mainFeatures.forEach((f) => {
+      features.forEach((f) => {
         Object.keys(f.properties).forEach((k) => {
           if (seenKeys.indexOf(k) === -1) {
             seenKeys.push(k);
-            mainFeaturesHeaders.push({ key: k, value: k });
+            selectedFeaturesHeaders.push({ key: k, value: k });
           }
         });
         if (seenFeatures.indexOf(f.id) === -1) {
           seenFeatures.push(f.id);
 
-          mainFeaturesData.push({
+          selectedFeaturesData.push({
             id: f.id,
             layer: f.sourceLayer,
             $type: f.type,
@@ -620,6 +625,8 @@
       });
     }
   }
+  $: handleSelectedFeatures(mainFeatures)
+  $: handleSelectedFeatures(secondaryFeatures)
 </script>
 
 <Theme bind:theme persist persistKey="__carbon-theme" />
@@ -640,7 +647,7 @@
       <HeaderGlobalAction
         aria-label={$_('opens_split')}
         icon={SplitScreen16}
-        on:click={selectSecondaryMBtiles}
+        on:click={switchCompareView}
       />
       <HeaderGlobalAction
         aria-label={$_('open_bottom_panel')}
@@ -648,8 +655,8 @@
         on:click={switchBottomPanel}
       />
       <HeaderAction>
-        <Content>
-          <h3>{$_('settings')}</h3>
+        <div style="padding:10px">
+          <h3 style:margin-bottom="30px">{$_('settings')}</h3>
           <Select labelText={$_('theme')} bind:selected={theme}>
             <SelectItem value="white" text="White" />
             <SelectItem value="g10" text="Gray 10" />
@@ -657,7 +664,7 @@
             <SelectItem value="g90" text="Gray 90" />
             <SelectItem value="g100" text="Gray 100" />
           </Select>
-        </Content>
+        </div>
       </HeaderAction>
     </HeaderUtilities>
   </Header>
@@ -680,18 +687,18 @@
         <Menu
           id="primary"
           slot="primary"
-          mbtiles={mainSources}
+          sources={mainSources}
           {map}
-          on:add_source={() => addPrimaryMBTiles()}
+          on:add_source={() => addMBTiles('main')}
           on:remove_source={(event) => removeDataSource('main', event.detail)}
           bind:wantPopup
           bind:wantTileBounds
-          bind:popupOnClick={mainPopupOnClick}
           bind:showBackgroundLayer={mainShowBackgroundLayer}
         />
         <svelte:fragment slot="secondary">
           <Split
             initialPrimarySize="100%"
+            bind:this={secondarySplit}
             minPrimarySize="50%"
             splitterSize={secondaryMap ? '10px' : '0px'}
           >
@@ -743,11 +750,11 @@
                 <Menu
                   id="secondary"
                   on:remove_source={(event) => removeDataSource('secondary', event.detail)}
-                  mbtiles={secondarySources}
+                  on:add_source={() => addMBTiles('secondary')}
+                  sources={secondarySources}
                   map={secondaryMap}
                   bind:wantPopup
                   bind:wantTileBounds
-                  bind:popupOnClick={secondaryPopupOnClick}
                   bind:showBackgroundLayer={secondaryShowBackgroundLayer}
                 />
               {/if}
@@ -757,7 +764,13 @@
       </Split>
       <svelte:fragment slot="secondary">
         <div style:height="100%" style:overflow="auto">
-          <DataTable class="canSelectText" size="short" expandable headers={mainFeaturesHeaders} rows={mainFeaturesData}>
+          <DataTable
+            class="canSelectText"
+            size="short"
+            expandable
+            headers={selectedFeaturesHeaders}
+            rows={selectedFeaturesData}
+          >
             <svelte:fragment slot="expanded-row" let:row>
               <Highlight
                 class="canSelectText"

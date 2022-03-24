@@ -16,12 +16,11 @@
   import type { Map } from 'maplibre-gl';
   import { createEventDispatcher } from 'svelte';
   import { _ } from 'svelte-i18n';
-  export let mbtiles;
+  export let sources;
   export let id;
   export let map: Map;
   export let wantPopup;
   export let wantTileBounds;
-  export let popupOnClick;
   export let showBackgroundLayer;
 
   const dispatch = createEventDispatcher();
@@ -34,7 +33,6 @@
     const sid = source.id;
     const layerIds = source.vector_layers?.map((l) => l.id) || [`${source.id}-layer`];
     mbtilesVisibility[sid] = visible;
-    console.log('switchSourceLayersVisibility', sid, source, layerIds);
     layerIds.forEach((layerId) => {
       applyLayerVisibility(source, layerId, visible);
     });
@@ -81,18 +79,14 @@
   };
 
   $: {
-    if (mbtiles) {
+    if (sources) {
+      mbtilesVisibility = {};
       layersVisibility = {};
       showingLayers = {
         points: 'visible',
         lines: 'visible',
         polygons: 'visible',
       };
-    }
-  }
-  $: {
-    if (mbtiles) {
-      mbtilesVisibility = {};
     }
   }
 
@@ -120,7 +114,7 @@
         showingLayers.polygons = 'visible';
         break;
     }
-    mbtiles.forEach((source) => {
+    sources.forEach((source) => {
       const layers = source.layers;
       Object.keys(layers).forEach((k) => {
         if (k !== 'colors' && k !== 'rasters') {
@@ -166,7 +160,7 @@
 </script>
 
 <div class="drawer">
-  {#if mbtiles.length > 0}
+  {#if sources.length > 0}
     <FormGroup legendText={$_('filters')}>
       <RadioButtonGroup bind:selected={filter}>
         {#each options as option}
@@ -182,11 +176,10 @@
     <HeaderPanelDivider />
     <Checkbox bind:checked={showBackgroundLayer} labelText={$_('show_background_layer')} />
     <Checkbox bind:checked={wantPopup} labelText={$_('show_attribute_popup')} />
-    <!-- <Checkbox bind:checked={popupOnClick} labelText={$_('show_popup_only_click')} /> -->
   {/if}
   <Checkbox bind:checked={wantTileBounds} labelText={$_('show_tile_boundaries')} />
   <HeaderPanelDivider />
-  {#each mbtiles as source}
+  {#each sources as source}
     <ExpandableTile
       expanded={!!source.vector_layers}
       tileCollapsedLabel={!!source.vector_layers
