@@ -13,7 +13,7 @@ specifiers:
   '@typescript-eslint/eslint-plugin': ^5.16.0
   '@typescript-eslint/parser': ^5.16.0
   carbon-components: ^10.55.2
-  carbon-components-svelte: ^0.62.1
+  carbon-components-svelte: ^0.62.2
   carbon-icons-svelte: ^10.45.1
   cssnano: ^5.1.5
   eslint: ^8.11.0
@@ -43,7 +43,7 @@ dependencies:
   '@geoffcox/svelte-splitter': 1.0.1
   '@maplibre/maplibre-gl-compare': 0.5.0_maplibre-gl@2.1.7
   carbon-components: 10.55.2
-  carbon-components-svelte: 0.62.1
+  carbon-components-svelte: 0.62.2
   carbon-icons-svelte: 10.45.1
   events: 3.3.0
   highlight.js: 11.5.0
@@ -1234,8 +1234,8 @@ packages:
     resolution: {integrity: sha512-xIZLh8gBm4dqNX0gkzrBeyI86J2eCjWzYAs40q88smG844YIrN4tVQl/RhquHvKEKImWWFIVh1Lxe5n1G/N+GQ==}
     dev: true
 
-  /carbon-components-svelte/0.62.1:
-    resolution: {integrity: sha512-tzDS7qJUCxvHve3MceXKUR3lA3S1OA/1fxmjxwHnuw6GBtkW5TjMdHkw4NJ9I+plvZt3wZZD3RioOYVGBtBAig==}
+  /carbon-components-svelte/0.62.2:
+    resolution: {integrity: sha512-cHCZxEpcjc8dmpuW/n8M4mmHnap8WX/jbZsj1PFXFSZKkWC4m0El8OxpZVqDoobe2/GpIvC7a6i02WsvIJHELg==}
     dependencies:
       flatpickr: 4.6.9
     dev: false
