@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.1](https://github.com/Akylas/mbview-rs/compare/v1.5.0...v1.5.1) (2022-03-24)
+
+
+### Bug Fixes
+
+* multiple bugs corrections and improvements ([1af09e5](https://github.com/Akylas/mbview-rs/commit/1af09e5e07517c042ad1f9c01d79b03d3543228e))
+
+
+
 ## [1.5.0](https://github.com/Akylas/mbview-rs/compare/v1.4.0...v1.5.0) (2022-03-22)
 
 
