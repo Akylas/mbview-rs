@@ -13,7 +13,7 @@ const ignoreWarnings = new Set([
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 // const config = require('./package.json');
-export default defineConfig(({ command, mode }) => {
+export default defineConfig(({ mode }) => {
   console.log('defineConfig', mode);
   const locales = readdirSync(join('src', 'i18n'))
     .filter((s) => s.endsWith('.json'))
