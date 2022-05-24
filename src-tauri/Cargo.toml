@@ -2,13 +2,13 @@
 name = "MBTilesViewer"
 version = "1.5.1"
 description = "MBtiles viewer and inspector"
-authors = [ "dev@akylasfr" ]
+authors = ["dev@akylasfr"]
 license = "MIT"
 repository = "https://github.com/farfromrefug/mbview"
 default-run = "MBTilesViewer"
 edition = "2018"
 build = "src/build.rs"
-include = [ "**/*.rs" ]
+include = ["**/*.rs"]
 
 [build-dependencies]
 tauri-build = { version = "1.0.0-rc.4", features = [] }
@@ -23,18 +23,28 @@ serde_json = "1.0"
 md5 = "0.7"
 libsqlite3-sys = "0.24"
 hotwatch = "0.4"
-tokio = { version = "1.17", features = [ "full" ] }
-hyper = { version = "0.14", features = [ "server", "http1", "http2", "tcp" ] }
-serde = { version = "1.0", features = [ "derive" ] }
-tauri = { version = "1.0.0-rc.4", features = ["dialog-open", "fs-read-file", "path-all", "protocol-asset", "shell-open"] }
+tokio = { version = "1.17", features = ["full"] }
+hyper = { version = "0.14", features = ["server", "http1", "http2", "tcp"] }
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1.0.0-rc.4", features = [
+  "dialog-open",
+  "fs-read-file",
+  "path-all",
+  "protocol-asset",
+  "shell-open",
+] }
 
-  [dependencies.rusqlite]
-  version = "0.27"
-  features = [ "bundled" ]
+[dependencies.rusqlite]
+version = "0.27"
+features = ["bundled"]
+
+[dependencies.tauri-plugin-window-state]
+git = "https://github.com/tauri-apps/tauri-plugin-window-state"
+branch = "dev"
 
 [features]
-default = [ "custom-protocol" ]
-custom-protocol = [ "tauri/custom-protocol" ]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
 
 [profile.release]
 panic = "abort"

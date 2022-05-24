@@ -11,8 +11,8 @@
     Tile,
     Toggle,
   } from 'carbon-components-svelte';
-  import Add16 from 'carbon-icons-svelte/lib/Add16';
-  import TrashCan16 from 'carbon-icons-svelte/lib/TrashCan16';
+  import Add16 from 'carbon-icons-svelte/lib/Add.svelte';
+  import TrashCan16 from 'carbon-icons-svelte/lib/TrashCan.svelte';
   import type { Map } from 'maplibre-gl';
   import { createEventDispatcher } from 'svelte';
   import { _ } from 'svelte-i18n';

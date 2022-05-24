@@ -31,13 +31,11 @@
       "shortDescription": "",
       "longDescription": "",
       "deb": {
-        "depends": [],
-        "useBootstrapper": false
+        "depends": []
       },
       "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "10.13",
-        "useBootstrapper": false,
         "exceptionDomain": "localhost",
         "signingIdentity": null,
         "entitlements": null

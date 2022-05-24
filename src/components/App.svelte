@@ -21,8 +21,10 @@
     Theme,
   } from 'carbon-components-svelte';
   import type { CarbonTheme } from 'carbon-components-svelte/types/Theme/Theme.svelte';
-  import SplitScreen16 from 'carbon-icons-svelte/lib/SplitScreen16';
-  import OpenPanelBottom16 from 'carbon-icons-svelte/lib/OpenPanelBottom16';
+  import SplitScreen16 from 'carbon-icons-svelte/lib/SplitScreen.svelte';
+  import OpenPanelBottom16 from 'carbon-icons-svelte/lib/OpenPanelBottom.svelte';
+  import EarthFilled16 from 'carbon-icons-svelte/lib/EarthFilled.svelte';
+  import Renew16 from 'carbon-icons-svelte/lib/Renew.svelte';
   import { CompassControl, ZoomControl } from 'mapbox-gl-controls';
   import { Map } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
@@ -35,9 +37,9 @@
   import Menu from './Menu.svelte';
   import { ScaleControl } from './ScaleControl';
   import Highlight from 'svelte-highlight';
-  import json from 'svelte-highlight/src/languages/json';
-  import dark from 'svelte-highlight/src/styles/nnfx-dark';
-  import light from 'svelte-highlight/src/styles/nnfx-light';
+  import json from 'svelte-highlight/languages/json';
+  import dark from 'svelte-highlight/styles/nnfx-dark';
+  import light from 'svelte-highlight/styles/nnfx-light';
 
   let map: Map = null;
   let secondaryMap: Map = null;
@@ -74,15 +76,9 @@
     );
 
     unlistenerReload = await listen<{ message: string }>('reload-mbtiles', (event) => {
-      let mapToRefresh = event.payload.message === 'secondary' ? secondaryMap : map;
-      Object.keys(mapToRefresh.style.sourceCaches).forEach((s) => {
-        // Remove the tiles for a particular source
-        mapToRefresh.style.sourceCaches[s].clearTiles();
-        // Load the new tiles for the current viewport (map.transform -> viewport)
-        mapToRefresh.style.sourceCaches[s].update(mapToRefresh.transform);
-      });
-      // Force a repaint, so that the map will be repainted without you having to touch the map
-      mapToRefresh.triggerRepaint();
+      // console.log('reload-mbtiles', event.payload.message);
+      // let mapToRefresh = event.payload.message === 'secondary' ? secondaryMap : map;
+      [map, secondaryMap].forEach(reloadMap)
     });
 
     const currentFile = localStorage.getItem('currentMBtiles');
@@ -91,16 +87,47 @@
     }
   });
 
+  function reloadMap(mapToRefresh) {
+    Object.keys(mapToRefresh.style.sourceCaches).forEach((s) => {
+      // Remove the tiles for a particular source
+      mapToRefresh.style.sourceCaches[s].clearTiles();
+      // Load the new tiles for the current viewport (map.transform -> viewport)
+      mapToRefresh.style.sourceCaches[s].update(mapToRefresh.transform);
+    });
+    // Force a repaint, so that the map will be repainted without you having to touch the map
+    mapToRefresh.triggerRepaint();
+  }
+  async function reloadMBtiles() {
+      mainSources.forEach((source) => {
+        console.log('reloadMBtiles', source.path);
+        invoke('reload_mbtiles', {
+          path: source.path,
+        });
+      });
+      secondarySources.forEach((source) => {
+        console.log('reloadMBtiles', source.path);
+        invoke('reload_mbtiles', {
+          path: source.path,
+        });
+      });
+  }
+
   let hasSources = false;
-  function setupMBtiles(filePath, key = 'main') {
+  async function setupMBtiles(filePath, key = 'main') {
     try {
-      invoke('setup_mbtiles', {
+      await invoke('setup_mbtiles', {
         key,
         path: filePath,
       });
     } catch (error) {
       console.error(error);
     }
+  }
+
+  function openInOSM() {
+    const zoom = map.getZoom();
+    const center = map.getCenter();
+    openURl(`https://www.openstreetmap.org/#map=${zoom+2}/${center.lat}/${center.lng}`)
   }
 
   onDestroy(() => {
@@ -216,6 +243,7 @@
       type: 'line',
       source: sId,
       'source-layer': id,
+      
       filter: ['==', '$type', 'LineString'],
       layout: {
         'line-join': 'round',
@@ -259,6 +287,9 @@
     hasSources = mainSources.length > 0;
     if (hasSources) {
       localStorage.setItem('currentMBtiles', mainSources[0].path);
+    }
+    if (secondarySources.length) {
+      localStorage.setItem('currentSecondaryMBtiles', secondarySources[0].path);
     }
   }
 
@@ -316,6 +347,18 @@
     vectorData.path = path;
 
     function onMapLoaded() {
+      // resultMap.addSource('osm', {
+      //   type: 'raster',
+      //   tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      //   tileSize: 256,
+      //   maxzoom: 19,
+      //   attribution: '&copy; OpenStreetMap Contributors',
+      // });
+      // resultMap.addLayer({
+      //   id: 'osm',
+      //   type: 'raster',
+      //   source: 'osm',
+      // });
       const sId = vectorData.id;
       resultMap.addSource(sId, {
         type: 'vector',
@@ -339,6 +382,11 @@
       if (key === 'main') {
         mainSources.push(vectorData);
         mainSources = mainSources;
+
+        const secondaryFile = localStorage.getItem('currentSecondaryMBtiles');
+        if (secondaryFile && secondaryFile !== 'undefined') {
+          setupMBtiles(secondaryFile, 'secondary');
+        }
       } else {
         secondarySources.push(vectorData);
         secondarySources = secondarySources;
@@ -401,6 +449,7 @@
         interactive: true,
       });
       resultMap.showTileBoundaries = wantTileBounds;
+
       addVectorMBtiles(resultMap, { key, path, json_url, source_id }, sourceData);
     } else {
       // addRasterMBtiles(resultMap, {key, path, json_url}, sourceData);
@@ -625,8 +674,8 @@
       });
     }
   }
-  $: handleSelectedFeatures(mainFeatures)
-  $: handleSelectedFeatures(secondaryFeatures)
+  $: handleSelectedFeatures(mainFeatures);
+  $: handleSelectedFeatures(secondaryFeatures);
 </script>
 
 <Theme bind:theme persist persistKey="__carbon-theme" />
@@ -644,6 +693,8 @@
       <SkipToContent />
     </svelte:fragment>
     <HeaderUtilities>
+      <HeaderGlobalAction aria-label={$_('open_osm')} icon={EarthFilled16} on:click={openInOSM} />
+      <HeaderGlobalAction aria-label={$_('reload')} icon={Renew16} on:click={reloadMBtiles} />
       <HeaderGlobalAction
         aria-label={$_('opens_split')}
         icon={SplitScreen16}

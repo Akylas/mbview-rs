@@ -69,7 +69,9 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 6
+          version: 7
+          run_install: |
+            - args: [--no-frozen-lockfile]
       - name: Node.js setup
         uses: actions/setup-node@v2
         with:
@@ -85,10 +87,6 @@ jobs:
       - uses: Swatinem/rust-cache@v1
         with:
           working-directory: "src-tauri"
-
-
-      - name: install app dependencies and build it
-        run: pnpm install && pnpm install --dir src/geo-three
 
       - uses: tauri-apps/tauri-action@dev
         env:

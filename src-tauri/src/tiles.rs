@@ -125,6 +125,7 @@ pub fn get_path(key: &String) -> Option<PathBuf> {
   }
 }
 pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) {
+  // println!("set_mbtiles {}", key);
   if has_tilesetsdata(key) {
     let mut hash_data = TILESET_MAP.lock().unwrap();
     let mut data = hash_data.get_mut(key).unwrap();
@@ -132,23 +133,25 @@ pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) 
       Ok(_) => {}
       Err(err) => println!("error unwatch {}", err),
     }
-    let watch_key = key.clone();
     // println!("set_mbtiles {}", path.clone().to_str().unwrap());
-    WATCHER
-      .lock()
-      .unwrap()
-      .watch(&path, move |event: Event| {
-        if let Event::Write(_) = event {
-          reload(&watch_key);
-        }
-      })
-      .unwrap();
-    data.path = path;
+    data.path = path.clone();
     data.data = match get_tile_details(&data.path) {
       Ok(tile_meta) => Some(tile_meta),
       Err(_) => None,
     };
     data.callback = callback;
+
+    let watch_key = key.clone();
+    WATCHER
+      .lock()
+      .unwrap()
+      .watch(&path.clone(), move |event: Event| {
+        // println!("mbtiles changed {}", path.clone().to_str().unwrap());
+        if let Event::Write(_) = event {
+          reload(&watch_key);
+        }
+      })
+      .unwrap();
   } else {
     let data = TilesetsData {
       data: match get_tile_details(&path) {
@@ -175,7 +178,9 @@ pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) 
 }
 
 pub fn reload(key: &String) {
+  // println!("reload {}", key);
   if has_tilesetsdata(key) {
+    // println!("has_tilesetsdata {}", key);
     let mut hash_data = TILESET_MAP.lock().unwrap();
     let mut data = hash_data.get_mut(key).unwrap();
     data.data = match get_tile_details(&data.path) {
