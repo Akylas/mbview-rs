@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.2](https://github.com/Akylas/mbview-rs/compare/v1.5.1...v1.5.2) (2022-05-25)
+
+
+### Bug Fixes
+
+* correctly hide selected layers with toggles ([614c5b4](https://github.com/Akylas/mbview-rs/commit/614c5b44b75dba8c46c7b042ad5a661831c09bc0))
+* missing translations ([f2aa541](https://github.com/Akylas/mbview-rs/commit/f2aa54169ec8a7d54f10248ed23b8809d1add24e))
+* prevent duplicates in attribute popup ([16a3fd7](https://github.com/Akylas/mbview-rs/commit/16a3fd730cdd9c7b7ffbc2e889b4c42127e8c3bf))
+* show geometry type as $type ([0f46557](https://github.com/Akylas/mbview-rs/commit/0f465579947822fbd5040a876814a9e3613e3b40))
+* theme style for popup and compare splitter ([f0b13ea](https://github.com/Akylas/mbview-rs/commit/f0b13ea80c60975a59eb895a6d694162dc139a77))
+* upgraded deps ([734038d](https://github.com/Akylas/mbview-rs/commit/734038df860d7549c0bee00584691da6591cf640))
+
+
+
 ## [1.5.1](https://github.com/Akylas/mbview-rs/compare/v1.5.0...v1.5.1) (2022-03-24)
 
 
