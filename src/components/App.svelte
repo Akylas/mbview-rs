@@ -665,7 +665,7 @@
           selectedFeaturesData.push({
             id: f.id,
             layer: f.sourceLayer,
-            $type: f.type,
+            $type: f.geometry.type,
             $id: f.id,
             ...f.properties,
             data: f,

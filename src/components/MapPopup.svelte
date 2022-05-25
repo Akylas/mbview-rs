@@ -127,7 +127,7 @@
       {#if feature.id}
         <PopupProperty name="$id" value={feature.id} />
       {/if}
-      <PopupProperty name="$type" value={feature.type} />
+      <PopupProperty name="$type" value={feature.geometry.type} />
       {#if feature.properties}
         {#each Object.entries(feature.properties) as [name, value]}
           <PopupProperty {name} {value} />
