@@ -64,8 +64,8 @@
   "dependencies": {
     "@geoffcox/svelte-splitter": "^1.0.1",
     "@maplibre/maplibre-gl-compare": "^0.5.0",
-    "carbon-components": "next",
-    "carbon-components-svelte": "^0.64.0",
+    "carbon-components": "10.56.0",
+    "carbon-components-svelte": "^0.64.1",
     "carbon-icons-svelte": "^11.0.1",
     "events": "^3.3.0",
     "highlight.js": "^11.5.1",
