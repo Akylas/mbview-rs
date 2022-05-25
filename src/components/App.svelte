@@ -676,6 +676,15 @@
   }
   $: handleSelectedFeatures(mainFeatures);
   $: handleSelectedFeatures(secondaryFeatures);
+  $: {
+    if (theme === 'g10' || theme === 'white') {
+      document.body.classList.remove('dark');
+      document.body.classList.add('light');
+    } else {
+      document.body.classList.remove('light');
+      document.body.classList.add('dark');
+    }
+  };
 </script>
 
 <Theme bind:theme persist persistKey="__carbon-theme" />
