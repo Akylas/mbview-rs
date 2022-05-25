@@ -26,7 +26,7 @@ jobs:
           echo ::set-output name=current_version::${GITHUB_REF#refs/tags/v}
       - name: Get Changelog Entry
         id: changelog_reader
-        uses: Akylas/changelog-reader-action@v3
+        uses: Akylas/changelog-reader-action@v2
         with:
           version: ${{ steps.tag_name.outputs.current_version }}
           path: ./CHANGELOG.md
