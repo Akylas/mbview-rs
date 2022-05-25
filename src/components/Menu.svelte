@@ -10,6 +10,7 @@
     RadioButtonGroup,
     Tile,
     Toggle,
+    Tooltip,
   } from 'carbon-components-svelte';
   import Add16 from 'carbon-icons-svelte/lib/Add.svelte';
   import TrashCan16 from 'carbon-icons-svelte/lib/TrashCan.svelte';
@@ -43,8 +44,9 @@
     const layers = source.layers;
     const prefix = `___${sId}___${layerId}`;
     const visible = sourceVisible && (layersVisibility[prefix] ?? true);
+
     layers.polygons
-      ?.filter((s) => s.startsWith(prefix))
+      ?.filter((s) => s.startsWith(prefix + '-polygons'))
       .forEach((l) => {
         map.setLayoutProperty(l, 'visibility', visible ? showingLayers.polygons : 'none');
       });
@@ -53,14 +55,13 @@
       .forEach((l) => {
         map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none');
       });
-
     layers.lines
-      ?.filter((s) => s.startsWith(prefix))
+      ?.filter((s) => s === `${prefix}-lines`)
       .forEach((l) => {
         map.setLayoutProperty(l, 'visibility', visible ? showingLayers.lines : 'none');
       });
     layers.points
-      ?.filter((s) => s.startsWith(prefix))
+      ?.filter((s) => s === `${prefix}-points`)
       .forEach((l) => {
         map.setLayoutProperty(l, 'visibility', visible ? showingLayers.points : 'none');
       });
@@ -188,10 +189,21 @@
       style="width:100%;margin-bottom:20px"
     >
       <div slot="above">
-        <!-- <div style="display:block;flex-grow:1;"> -->
         <h3>{source.name || source.id}</h3>
-        <h6 style="word-break: break-all;">{source.path}</h6>
-        <!-- </div> -->
+        <!-- <h6 style="word-break: break-all;">{source.path.split('/').slice(-1)[0]}</h6> -->
+        <Tooltip
+          direction="top"
+          triggerText={source.path.split('/').slice(-1)[0]}
+          on:click={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+        >
+          <h4>{$_('file_path')}:</h4>
+          <h6 style="word-break: break-all;">{source.path}</h6>
+          <h4>{$_('tiles')}:</h4>
+          <h6 style="word-break: break-all;">{source.tiles[0]}</h6>
+        </Tooltip>
         <Toggle
           style="margin-bottom:20px;"
           toggled={true}
