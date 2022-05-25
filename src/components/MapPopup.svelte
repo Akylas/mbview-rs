@@ -74,7 +74,7 @@
     features =
       map
         .queryRenderedFeatures(queryBox, {
-          layers: layers.polygons.concat(layers.lines.concat(layers.points)),
+          layers: layers.polygons.filter(s=>!s.endsWith('-outline')).concat(layers.lines.concat(layers.points)),
         })
         ?.sortBy({ prop: 'sourceLayer' })
         .map((f) => {
