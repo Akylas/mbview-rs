@@ -78,7 +78,7 @@
     unlistenerReload = await listen<{ message: string }>('reload-mbtiles', (event) => {
       // console.log('reload-mbtiles', event.payload.message);
       // let mapToRefresh = event.payload.message === 'secondary' ? secondaryMap : map;
-      [map, secondaryMap].forEach(reloadMap)
+      [map, secondaryMap].forEach(reloadMap);
     });
 
     const currentFile = localStorage.getItem('currentMBtiles');
@@ -98,18 +98,18 @@
     mapToRefresh.triggerRepaint();
   }
   async function reloadMBtiles() {
-      mainSources.forEach((source) => {
-        console.log('reloadMBtiles', source.path);
-        invoke('reload_mbtiles', {
-          path: source.path,
-        });
+    mainSources.forEach((source) => {
+      console.log('reloadMBtiles', source.path);
+      invoke('reload_mbtiles', {
+        path: source.path,
       });
-      secondarySources.forEach((source) => {
-        console.log('reloadMBtiles', source.path);
-        invoke('reload_mbtiles', {
-          path: source.path,
-        });
+    });
+    secondarySources.forEach((source) => {
+      console.log('reloadMBtiles', source.path);
+      invoke('reload_mbtiles', {
+        path: source.path,
       });
+    });
   }
 
   let hasSources = false;
@@ -127,7 +127,7 @@
   function openInOSM() {
     const zoom = map.getZoom();
     const center = map.getCenter();
-    openURl(`https://www.openstreetmap.org/#map=${zoom+2}/${center.lat}/${center.lng}`)
+    openURl(`https://www.openstreetmap.org/#map=${zoom + 2}/${center.lat}/${center.lng}`);
   }
 
   onDestroy(() => {
@@ -197,7 +197,7 @@
         'fill-color': layerColor,
       },
     });
-    layerId = layerId + `-outline`;
+    layerId = layerId + '-outline';
     layers.polygons.push(layerId);
     // mapLayers.push(layerId);
     map.addLayer({
@@ -243,7 +243,7 @@
       type: 'line',
       source: sId,
       'source-layer': id,
-      
+
       filter: ['==', '$type', 'LineString'],
       layout: {
         'line-join': 'round',
@@ -420,18 +420,6 @@
       center = map.getCenter();
     }
     if (sourceData.vector_layers || sourceData.Layer) {
-      // let newLayers: Layers = {
-      //   points: [],
-      //   lines: [],
-      //   rasters: [],
-      //   polygons: [],
-      //   colors: {},
-      // };
-      // if (key === 'main') {
-      //   mainLayers = newLayers;
-      // } else {
-      //   secondaryLayers = newLayers;
-      // }
       const styleSrc = await resolve(await resourceDir(), `_up_/resources/styles/${basemap}.json`);
       const styleStr: string = await readTextFile(styleSrc);
       const style = JSON.parse(styleStr.replace('{{json_url}}', json_url));
@@ -452,7 +440,6 @@
 
       addVectorMBtiles(resultMap, { key, path, json_url, source_id }, sourceData);
     } else {
-      // addRasterMBtiles(resultMap, {key, path, json_url}, sourceData);
       resultMap = new Map({
         container: containerKey,
         style: {
@@ -531,7 +518,7 @@
     key: string;
     source_id: string;
   }) {
-    // console.log('onMBTilesSet', path, json_url, source_id, key);
+    console.log('onMBTilesSet', path, json_url, source_id, key);
     // if (key === 'main') {
     //   clearMainMap();
     // }
@@ -661,7 +648,6 @@
         });
         if (seenFeatures.indexOf(f.id) === -1) {
           seenFeatures.push(f.id);
-
           selectedFeaturesData.push({
             id: f.id,
             layer: f.sourceLayer,
