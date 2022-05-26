@@ -50,6 +50,9 @@
       "active": false
     },
     "allowlist": {
+      "clipboard":{
+        "all":true
+      },
       "all": false,
       "path":{
         "all":true

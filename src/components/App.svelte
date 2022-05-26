@@ -9,7 +9,6 @@
   import { resolve, resourceDir } from '@tauri-apps/api/path';
   import { open as openURl } from '@tauri-apps/api/shell';
   import {
-    Content,
     DataTable,
     Header,
     HeaderAction,
@@ -24,9 +23,13 @@
   import SplitScreen16 from 'carbon-icons-svelte/lib/SplitScreen.svelte';
   import OpenPanelBottom16 from 'carbon-icons-svelte/lib/OpenPanelBottom.svelte';
   import EarthFilled16 from 'carbon-icons-svelte/lib/EarthFilled.svelte';
+  import CopyFile from 'carbon-icons-svelte/lib/CopyFile.svelte';
   import Renew16 from 'carbon-icons-svelte/lib/Renew.svelte';
   import { CompassControl, ZoomControl } from 'mapbox-gl-controls';
   import { Map } from 'maplibre-gl';
+  import { MapMouseEvent } from 'maplibre-gl/src/ui/events';
+  import DOM from 'maplibre-gl/src/util/dom';
+  import { writeText, readText } from '@tauri-apps/api/clipboard';
   import 'maplibre-gl/dist/maplibre-gl.css';
   import { randomColor } from 'randomcolor';
   import { onDestroy, onMount } from 'svelte';
@@ -34,14 +37,19 @@
   import FileDrop from 'svelte-tauri-filedrop';
   import type { Feature } from './Map';
   import MapPopup from './MapPopup.svelte';
+  import ContextMenu from './ContextMenu.svelte';
+  import ContextMenuOption from './ContextMenuOption.svelte';
   import Menu from './Menu.svelte';
   import { ScaleControl } from './ScaleControl';
   import Highlight from 'svelte-highlight';
   import json from 'svelte-highlight/languages/json';
   import dark from 'svelte-highlight/styles/nnfx-dark';
   import light from 'svelte-highlight/styles/nnfx-light';
+  import { pointToTile } from '@mapbox/tilebelt';
+  import { VectorTile } from '@mapbox/vector-tile';
+  import Pbf from 'pbf';
 
-  let map: Map = null;
+  let mainMap: Map = null;
   let secondaryMap: Map = null;
   let compareMap: Compare;
   let wantTileBounds = false;
@@ -64,6 +72,9 @@
   let secondarySources = [];
   let wantPopup = true;
 
+  let mainMapDiv;
+  let secondaryMapDiv;
+
   // $: console.log('mainFeatures', mainFeatures);
   onMount(async () => {
     // const styleSrc = await resolve(await resourceDir(), '../resources/styles/streets.json');
@@ -78,7 +89,7 @@
     unlistenerReload = await listen<{ message: string }>('reload-mbtiles', (event) => {
       // console.log('reload-mbtiles', event.payload.message);
       // let mapToRefresh = event.payload.message === 'secondary' ? secondaryMap : map;
-      [map, secondaryMap].forEach(reloadMap);
+      [mainMap, secondaryMap].forEach(reloadMap);
     });
 
     const currentFile = localStorage.getItem('currentMBtiles');
@@ -125,8 +136,8 @@
   }
 
   function openInOSM() {
-    const zoom = map.getZoom();
-    const center = map.getCenter();
+    const zoom = mainMap.getZoom();
+    const center = mainMap.getCenter();
     openURl(`https://www.openstreetmap.org/#map=${zoom + 2}/${center.lat}/${center.lng}`);
   }
 
@@ -258,7 +269,7 @@
   }
 
   async function removeDataSource(key, source) {
-    const resultMap = key === 'main' ? map : secondaryMap;
+    const resultMap = key === 'main' ? mainMap : secondaryMap;
     const layers = source.layers;
     const layerIds = Object.keys(resultMap.style._layers).filter(
       (s) => s.startsWith(`___${source.id}`) || s === `${source.id}-layer`
@@ -416,8 +427,8 @@
             ]
           : undefined;
     } else {
-      zoom = map.getZoom();
-      center = map.getCenter();
+      zoom = mainMap.getZoom();
+      center = mainMap.getCenter();
     }
     if (sourceData.vector_layers || sourceData.Layer) {
       const styleSrc = await resolve(await resourceDir(), `_up_/resources/styles/${basemap}.json`);
@@ -481,9 +492,9 @@
   }
 
   function clearMainMap() {
-    if (map) {
+    if (mainMap) {
       try {
-        map.remove();
+        mainMap.remove();
         hasSources = false;
       } catch (err) {
         console.error(err);
@@ -530,14 +541,14 @@
     if (path) {
       if (key === 'main') {
         if (!hasSources) {
-          map = await createMap({ key, path, json_url, source_id });
+          mainMap = await createMap({ key, path, json_url, source_id });
         } else {
           let sourceData = await (await fetch(json_url)).json();
 
           if (sourceData.vector_layers || sourceData.Layer) {
-            addVectorMBtiles(map, { key, path, json_url, source_id }, sourceData);
+            addVectorMBtiles(mainMap, { key, path, json_url, source_id }, sourceData);
           } else {
-            addRasterMBtiles(map, { key, path, json_url, source_id }, sourceData);
+            addRasterMBtiles(mainMap, { key, path, json_url, source_id }, sourceData);
           }
         }
       } else if (key === 'secondary') {
@@ -552,7 +563,7 @@
           secondaryMap = await createMap({ key, path, json_url, source_id });
           mainPopupOnClick = true;
           secondaryPopupOnClick = true;
-          compareMap = new Compare(map, secondaryMap, '#comparison-container', {
+          compareMap = new Compare(mainMap, secondaryMap, '#comparison-container', {
             // mousemove: true, // Optional. Set to true to enable swiping during cursor movement.
             // orientation: 'horizontal', // Optional. Sets the orientation of swiper to horizontal or vertical, defaults to vertical
           });
@@ -594,7 +605,7 @@
     if (showBottomPanel) {
       bottomPanelPercent = e.detail.percent;
     }
-    map?.resize();
+    mainMap?.resize();
     secondaryMap?.resize();
   }
   function switchBottomPanel() {
@@ -670,7 +681,69 @@
       document.body.classList.remove('light');
       document.body.classList.add('dark');
     }
-  };
+  }
+
+  function dumpTile({ layers }) {
+    let tile: any = {};
+    tile.layers = Object.values(layers).map(dumpLayer);
+    return tile;
+  }
+
+  function dumpLayer(vl) {
+    let { version, name, extent, length } = vl;
+    let layer = { version, name, extent, features: [] };
+    for (let i = 0; i < length; i++) {
+      layer.features.push(dumpFeature(vl.feature(i)));
+    }
+    return layer;
+  }
+
+  function dumpFeature(vf) {
+    let { type, extent, id, properties } = vf;
+    let geometry = dumpGeometry(vf.loadGeometry());
+    return { type, extent, id, properties, geometry };
+  }
+
+  function dumpGeometry(vg) {
+    function convertRing(ring) {
+      return ring.reduce(function (r, { x, y }) {
+        r.push(x, y);
+        return r;
+      }, []);
+    }
+    return vg.map(convertRing);
+  }
+  async function copyTileAsGeoJSON(key, event) {
+    try {
+      const map = key === 'secondary' ? secondaryMap : mainMap;
+      const mapEvent = new MapMouseEvent(event.type, map as any, event.detail);
+      const lngLat = mapEvent.lngLat;
+      const tile = pointToTile(lngLat.lng, lngLat.lat, map.getZoom());
+      // console.log('copyTileAsGeoJSON', lngLat, tile);
+      const sources = key === 'secondary' ? secondarySources : mainSources;
+      let result = {};
+      for (let index = 0; index < sources.length; index++) {
+        const s = sources[index];
+        const buffer = await (
+          await fetch(
+            s.tiles[0].replace('{x}', tile[0]).replace('{y}', tile[1]).replace('{z}', tile[2])
+          )
+        ).arrayBuffer();
+
+        let vt = new VectorTile(new Pbf(buffer));
+        let dumpedTile = dumpTile(vt);
+        result[s.path] = dumpedTile;
+      }
+      if (Object.keys(result).length === 1) {
+        writeText(JSON.stringify(result[Object.keys(result)[0]]));
+      } else {
+        writeText(JSON.stringify(result));
+      }
+    } catch (err) {
+      console.error(err)
+      writeText(JSON.stringify({}));
+    }
+  }
 </script>
 
 <Theme bind:theme persist persistKey="__carbon-theme" />
@@ -726,15 +799,15 @@
     >
       <Split
         slot="primary"
+        resetOnDoubleClick={true}
         initialPrimarySize="270px"
-        minPrimarySize="270px"
         minSecondarySize="50%"
       >
         <Menu
           id="primary"
           slot="primary"
           sources={mainSources}
-          {map}
+          map={mainMap}
           on:add_source={() => addMBTiles('main')}
           on:remove_source={(event) => removeDataSource('main', event.detail)}
           bind:wantPopup
@@ -745,6 +818,7 @@
           <Split
             initialPrimarySize="100%"
             bind:this={secondarySplit}
+            resetOnDoubleClick={true}
             minPrimarySize="50%"
             splitterSize={secondaryMap ? '10px' : '0px'}
           >
@@ -771,7 +845,7 @@
                 <h1 id="no_mbtiles">{$_('drop_open_mbtiles')}</h1>
               {/if}
               <div id="comparison-container">
-                <div id="secondary" class="map">
+                <div id="secondary" class="map" bind:this={secondaryMapDiv}>
                   <MapPopup
                     map={secondaryMap}
                     sources={secondarySources}
@@ -780,9 +854,9 @@
                     onlyOnClick={secondaryPopupOnClick}
                   />
                 </div>
-                <div id="main" class="map">
+                <div id="main" class="map" bind:this={mainMapDiv}>
                   <MapPopup
-                    {map}
+                    map={mainMap}
                     sources={mainSources}
                     bind:features={mainFeatures}
                     enabled={wantPopup}
@@ -829,6 +903,22 @@
       </svelte:fragment>
     </Split>
   </div>
+  <ContextMenu target={mainMapDiv}>
+    <ContextMenuOption
+      indented
+      labelText={$_('copy_tile_geojson')}
+      icon={CopyFile}
+      on:click={(e) => copyTileAsGeoJSON('main', e)}
+    />
+  </ContextMenu>
+  <ContextMenu target={secondaryMapDiv}>
+    <ContextMenuOption
+      indented
+      labelText={$_('copy_tile_geojson')}
+      icon={CopyFile}
+      on:click={(e) => copyTileAsGeoJSON('secondary', e)}
+    />
+  </ContextMenu>
 </div>
 
 <style>

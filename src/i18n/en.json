@@ -3,6 +3,7 @@
   "all": "all",
   "collapsed_options": "expand to see options",
   "collapsed_sources": "expand to see sources",
+  "copy_tile_geojson": "Copy tile GeoJSON",
   "download": "download",
   "drop_open_mbtiles": "drop or open a MBtiles",
   "file_path": "file path",
