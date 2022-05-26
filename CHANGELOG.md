@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+# [1.6.0](https://github.com/Akylas/mbview-rs/compare/v1.5.2...v1.6.0) (2022-05-26)
+
+
+### Features
+
+* added map context menu ([4311381](https://github.com/Akylas/mbview-rs/commit/4311381f11839a56fc100229874b4973ce2653d8))
+
+
+
 ## [1.5.2](https://github.com/Akylas/mbview-rs/compare/v1.5.1...v1.5.2) (2022-05-25)
 
 
