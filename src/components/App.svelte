@@ -633,7 +633,9 @@
 
   function handleSelectedFeatures(features) {
     if (features?.length > 0) {
-      selectedFeaturesData = [];
+      // selectedFeaturesData = [];
+      let headers = [];
+      let data = [];
       selectedFeaturesHeaders = [
         {
           key: 'layer',
@@ -648,26 +650,42 @@
           value: '$id',
         },
       ];
-      let seenKeys = selectedFeaturesHeaders.map((h) => h.key);
+      let seenKeys = headers.map((h) => h.key);
       let seenFeatures = [];
       features.forEach((f) => {
         Object.keys(f.properties).forEach((k) => {
           if (seenKeys.indexOf(k) === -1) {
             seenKeys.push(k);
-            selectedFeaturesHeaders.push({ key: k, value: k });
+            headers.push({ key: k, value: k });
           }
         });
         if (seenFeatures.indexOf(f.id) === -1) {
           seenFeatures.push(f.id);
-          selectedFeaturesData.push({
+          data.push({
             id: f.id,
-            layer: f.sourceLayer,
+            // layer: f.sourceLayer,
             $type: f.geometry.type,
             $id: f.id,
             ...f.properties,
             data: f,
           });
         }
+        selectedFeaturesHeaders = headers.sort((a, b) => {
+          let fa = a.key.toLowerCase(),
+            fb = b.key.toLowerCase();
+
+          if (fa < fb) {
+            return -1;
+          }
+          if (fa > fb) {
+            return 1;
+          }
+          return 0;
+        });
+        selectedFeaturesData = data.sort((a, b) => {
+          if (a.osmid) return a.osmid - b.osmid;
+          else return a.$id - b.$id;
+        });
       });
     }
   }
