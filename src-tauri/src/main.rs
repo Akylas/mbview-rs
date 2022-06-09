@@ -57,12 +57,17 @@ fn setup_mbtiles(key: String, path: Option<String>, window: Window) {
   if path.is_none() {
     return;
   }
+  let path_buf = PathBuf::from(path.clone().unwrap());
+  if !path_buf.exists() {
+    return;
+  }
   let window_ = window.clone();
   let mb_tiles_id = format!("{:x}", md5::compute(path.clone().unwrap().as_bytes()));
+
   // println!("mbTilesId {} {}", path.clone().unwrap(), mb_tiles_id);
   set_mbtiles(
     &mb_tiles_id,
-    PathBuf::from(path.unwrap().clone()),
+    path_buf,
     Box::new(move |mb_tiles_id| {
       window_
         .emit_all(
