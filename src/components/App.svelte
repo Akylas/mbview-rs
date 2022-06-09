@@ -758,7 +758,7 @@
         writeText(JSON.stringify(result));
       }
     } catch (err) {
-      console.error(err)
+      console.error(err);
       writeText(JSON.stringify({}));
     }
   }
