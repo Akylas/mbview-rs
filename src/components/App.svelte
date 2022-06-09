@@ -736,7 +736,7 @@
       const map = key === 'secondary' ? secondaryMap : mainMap;
       const mapEvent = new MapMouseEvent(event.type, map as any, event.detail);
       const lngLat = mapEvent.lngLat;
-      const tile = pointToTile(lngLat.lng, lngLat.lat, map.getZoom());
+      const tile = pointToTile(lngLat.lng, lngLat.lat, Math.floor(map.getZoom()));
       // console.log('copyTileAsGeoJSON', lngLat, tile);
       const sources = key === 'secondary' ? secondarySources : mainSources;
       let result = {};
