@@ -107,7 +107,8 @@
     mapToRefresh.triggerRepaint();
   }
   async function reloadMBtiles() {
-    [mainMap, secondaryMap].forEach(reloadMap);
+    // [mainMap, secondaryMap].forEach(reloadMap);
+    // clearMaps();
     mainSources.forEach((source) => {
       removeDataSource('main', source);
       invoke('setup_mbtiles', {
@@ -272,14 +273,19 @@
   async function removeDataSource(key, source) {
     const resultMap = key === 'main' ? mainMap : secondaryMap;
     const layers = source.layers;
-    const layerIds = Object.keys(resultMap.style._layers).filter(
-      (s) => s.startsWith(`___${source.id}`) || s === `${source.id}-layer`
-    );
-    layerIds.forEach((s) => {
-      resultMap.removeLayer(s);
-      delete layers[s];
-    });
-    resultMap.removeSource(source.id);
+    const layerIds =
+      resultMap &&
+      resultMap.style &&
+      resultMap.style._layers &&
+      Object.keys(resultMap.style._layers).filter(
+        (s) => s.startsWith(`___${source.id}`) || s === `${source.id}-layer`
+      );
+    layerIds &&
+      layerIds.forEach((s) => {
+        resultMap && resultMap.removeLayer(s);
+        delete layers[s];
+      });
+    resultMap && resultMap.style && resultMap.removeSource(source.id);
     if (key === 'main') {
       const index = mainSources.findIndex((s) => s.id === source.id);
       if (index !== -1) {
@@ -302,6 +308,9 @@
     }
     if (secondarySources.length) {
       localStorage.setItem('currentSecondaryMBtiles', secondarySources[0].path);
+    }
+    if (!hasSources) {
+      clearMaps();
     }
   }
 
@@ -492,15 +501,21 @@
     return resultMap;
   }
 
-  function clearMainMap() {
-    if (mainMap) {
-      try {
+  function clearMaps() {
+    try {
+      if (mainMap) {
         mainMap.remove();
-        hasSources = false;
-      } catch (err) {
-        console.error(err);
+        mainMap = null;
       }
-      mainSources = [];
+      if (secondaryMap) {
+        clearSecondaryMap();
+      }
+      if (compareMap) {
+        compareMap.remove();
+        compareMap = null;
+      }
+    } catch (err) {
+      console.error(err);
     }
   }
   function clearSecondaryMap() {
@@ -530,7 +545,17 @@
     key: string;
     source_id: string;
   }) {
-    console.log('onMBTilesSet', path, json_url, source_id, key);
+    console.log(
+      'onMBTilesSet',
+      path,
+      json_url,
+      source_id,
+      key,
+      hasSources,
+      !!mainMap,
+      !!secondaryMap,
+      !!compareMap
+    );
     // if (key === 'main') {
     //   clearMainMap();
     // }
@@ -564,6 +589,9 @@
           secondaryMap = await createMap({ key, path, json_url, source_id });
           mainPopupOnClick = true;
           secondaryPopupOnClick = true;
+          if (compareMap) {
+            compareMap.remove();
+          }
           compareMap = new Compare(mainMap, secondaryMap, '#comparison-container', {
             // mousemove: true, // Optional. Set to true to enable swiping during cursor movement.
             // orientation: 'horizontal', // Optional. Sets the orientation of swiper to horizontal or vertical, defaults to vertical
