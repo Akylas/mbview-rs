@@ -115,7 +115,9 @@
     secondarySourcesToLoadOnMainMapLoad = secondarySources.map((s) => s.path);
     savedZoom = mainMap.getZoom();
     savedPosition = mainMap.getCenter();
-    savedSplitPosition = secondarySplit.getPercent();
+    if (compareMap) {
+      savedSplitPosition = compareMap['currentPosition'];
+    }
     mainSourcesOld.forEach((source) => {
       removeDataSource('main', source, true, false);
     });
@@ -631,7 +633,7 @@
             // mousemove: true, // Optional. Set to true to enable swiping during cursor movement.
             // orientation: 'horizontal', // Optional. Sets the orientation of swiper to horizontal or vertical, defaults to vertical
           });
-          compareMap.setSlider(500);
+          compareMap.setSlider(savedSplitPosition ? savedSplitPosition : 500);
         }
       }
     }
