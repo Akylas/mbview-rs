@@ -75,6 +75,10 @@
   let mainMapDiv;
   let secondaryMapDiv;
 
+  let savedZoom;
+  let savedPosition;
+  let savedSplitPosition;
+
   // $: console.log('mainFeatures', mainFeatures);
   onMount(async () => {
     // const styleSrc = await resolve(await resourceDir(), '../resources/styles/streets.json');
@@ -107,27 +111,33 @@
     mapToRefresh.triggerRepaint();
   }
   async function reloadMBtiles() {
-    // [mainMap, secondaryMap].forEach(reloadMap);
-    // clearMaps();
-    mainSources.forEach((source) => {
-      removeDataSource('main', source);
-      invoke('setup_mbtiles', {
-        key: 'main',
-        path: source.path,
-      });
+    let mainSourcesOld = mainSources.slice();
+    secondarySourcesToLoadOnMainMapLoad = secondarySources.map((s) => s.path);
+    savedZoom = mainMap.getZoom();
+    savedPosition = mainMap.getCenter();
+    savedSplitPosition = secondarySplit.getPercent();
+    mainSourcesOld.forEach((source) => {
+      removeDataSource('main', source, true, false);
     });
     secondarySources.forEach((source) => {
-      removeDataSource('secondary', source);
-      invoke('setup_mbtiles', {
-        key: 'secondary',
-        path: source.path,
-      });
+      removeDataSource('secondary', source, true, false);
+    });
+    mainSourcesOld.forEach((source) => {
+      setupMBtiles(source.path);
     });
   }
 
+  let secondarySourcesToLoadOnMainMapLoad = localStorage.getItem('currentSecondaryMBtiles')
+    ? [localStorage.getItem('currentSecondaryMBtiles')]
+    : [];
   let hasSources = false;
   async function setupMBtiles(filePath, key = 'main') {
     try {
+      const sources = key === 'secondary' ? secondarySources : mainSources;
+      if (sources.find((s) => s.path === filePath)) {
+        console.log('setupMBtiles source already loaded', filePath, key);
+        return;
+      }
       await invoke('setup_mbtiles', {
         key,
         path: filePath,
@@ -270,7 +280,8 @@
     });
   }
 
-  async function removeDataSource(key, source) {
+  async function removeDataSource(key, source, clearIfEmpty = true, canRemoveFromStorage = true) {
+    console.log('removeDataSource', key, source, clearIfEmpty);
     const resultMap = key === 'main' ? mainMap : secondaryMap;
     const layers = source.layers;
     const layerIds =
@@ -292,16 +303,20 @@
         mainSources.splice(index, 1);
         mainSources = mainSources;
       }
-      updateMainSourcesCount();
+      updateMainSourcesCount(clearIfEmpty);
     } else {
       const index = secondarySources.findIndex((s) => s.id === source.id);
       if (index !== -1) {
         secondarySources.splice(index, 1);
         secondarySources = secondarySources;
+        if (secondarySources.length === 0 && clearIfEmpty) {
+          clearSecondaryMap(canRemoveFromStorage);
+        }
       }
     }
   }
-  function updateMainSourcesCount() {
+  function updateMainSourcesCount(clearIfEmpty = true) {
+    console.log('updateMainSourcesCount', clearIfEmpty);
     hasSources = mainSources.length > 0;
     if (hasSources) {
       localStorage.setItem('currentMBtiles', mainSources[0].path);
@@ -309,7 +324,7 @@
     if (secondarySources.length) {
       localStorage.setItem('currentSecondaryMBtiles', secondarySources[0].path);
     }
-    if (!hasSources) {
+    if (!hasSources && clearIfEmpty) {
       clearMaps();
     }
   }
@@ -362,12 +377,21 @@
     }
   }
   async function addVectorMBtiles(resultMap: Map, { key, path, json_url, source_id }, vectorData) {
+    console.log(
+      'addVectorMBtiles',
+      key,
+      path,
+      json_url,
+      !!resultMap,
+      resultMap && resultMap.loaded()
+    );
     if (!vectorData) {
       vectorData = await (await fetch(json_url)).json();
     }
     vectorData.path = path;
 
     function onMapLoaded() {
+      console.log('addVectorMBtiles onMapLoaded', key, path, json_url);
       // resultMap.addSource('osm', {
       //   type: 'raster',
       //   tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],
@@ -403,11 +427,7 @@
       if (key === 'main') {
         mainSources.push(vectorData);
         mainSources = mainSources;
-
-        const secondaryFile = localStorage.getItem('currentSecondaryMBtiles');
-        if (secondaryFile && secondaryFile !== 'undefined') {
-          setupMBtiles(secondaryFile, 'secondary');
-        }
+        secondarySourcesToLoadOnMainMapLoad.forEach((s) => setupMBtiles(s, 'secondary'));
       } else {
         secondarySources.push(vectorData);
         secondarySources = secondarySources;
@@ -428,14 +448,17 @@
     let center;
     let zoom;
     if (key === 'main') {
-      zoom = sourceData.minzoom + (sourceData.maxzoom - sourceData.minzoom) / 2;
-      center =
-        sourceData.center ?? sourceData.bounds
-          ? [
-              sourceData.bounds[0] + (sourceData.bounds[2] - sourceData.bounds[0]) / 2,
-              sourceData.bounds[3] + (sourceData.bounds[1] - sourceData.bounds[3]) / 2,
-            ]
-          : undefined;
+      zoom = savedZoom
+        ? savedZoom
+        : sourceData.minzoom + (sourceData.maxzoom - sourceData.minzoom) / 2;
+      center = savedPosition
+        ? savedPosition
+        : sourceData.center ?? sourceData.bounds
+        ? [
+            sourceData.bounds[0] + (sourceData.bounds[2] - sourceData.bounds[0]) / 2,
+            sourceData.bounds[3] + (sourceData.bounds[1] - sourceData.bounds[3]) / 2,
+          ]
+        : undefined;
     } else {
       zoom = mainMap.getZoom();
       center = mainMap.getCenter();
@@ -502,6 +525,7 @@
   }
 
   function clearMaps() {
+    console.log('clearMaps');
     try {
       if (mainMap) {
         mainMap.remove();
@@ -518,7 +542,8 @@
       console.error(err);
     }
   }
-  function clearSecondaryMap() {
+  function clearSecondaryMap(canRemoveFromStorage = true) {
+    console.log('clearSecondaryMap', canRemoveFromStorage);
     if (secondaryMap) {
       try {
         secondaryMap.remove();
@@ -528,7 +553,12 @@
       secondaryMap = null;
       secondaryFeatures = [];
       secondarySources = [];
+      if (compareMap) {
+        compareMap.remove();
+        compareMap = null;
+      }
       secondarySplit.setPercent(100);
+      canRemoveFromStorage && localStorage.removeItem('currentSecondaryMBtiles');
     } else {
       addMBTiles('secondary');
     }
@@ -565,8 +595,13 @@
     //   compareMap = null;
     // }
     if (path) {
+      const sources = key === 'secondary' ? secondarySources : mainSources;
+      if (sources.find((s) => s.path === path)) {
+        console.log('setupMBtiles source already loaded', path, key);
+        return;
+      }
       if (key === 'main') {
-        if (!hasSources) {
+        if (!mainMap) {
           mainMap = await createMap({ key, path, json_url, source_id });
         } else {
           let sourceData = await (await fetch(json_url)).json();
@@ -648,10 +683,6 @@
   function switchCompareView() {
     if (compareMap) {
       clearSecondaryMap();
-      if (compareMap) {
-        compareMap.remove();
-        compareMap = null;
-      }
     } else {
       addMBTiles('secondary');
     }

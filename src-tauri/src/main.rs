@@ -64,7 +64,7 @@ fn setup_mbtiles(key: String, path: Option<String>, window: Window) {
   let window_ = window.clone();
   let mb_tiles_id = format!("{:x}", md5::compute(path.clone().unwrap().as_bytes()));
 
-  // println!("mbTilesId {} {}", path.clone().unwrap(), mb_tiles_id);
+  // println!("setup_mbtiles {} {}", path.clone().unwrap(), mb_tiles_id);
   set_mbtiles(
     &mb_tiles_id,
     path_buf,
