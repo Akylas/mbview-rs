@@ -87,8 +87,6 @@
     );
 
     unlistenerReload = await listen<{ message: string }>('reload-mbtiles', (event) => {
-      // console.log('reload-mbtiles', event.payload.message);
-      // let mapToRefresh = event.payload.message === 'secondary' ? secondaryMap : map;
       [mainMap, secondaryMap].forEach(reloadMap);
     });
 
@@ -109,15 +107,18 @@
     mapToRefresh.triggerRepaint();
   }
   async function reloadMBtiles() {
+    [mainMap, secondaryMap].forEach(reloadMap);
     mainSources.forEach((source) => {
-      console.log('reloadMBtiles', source.path);
-      invoke('reload_mbtiles', {
+      removeDataSource('main', source);
+      invoke('setup_mbtiles', {
+        key: 'main',
         path: source.path,
       });
     });
     secondarySources.forEach((source) => {
-      console.log('reloadMBtiles', source.path);
-      invoke('reload_mbtiles', {
+      removeDataSource('secondary', source);
+      invoke('setup_mbtiles', {
+        key: 'secondary',
         path: source.path,
       });
     });
