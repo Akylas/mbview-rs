@@ -43,6 +43,8 @@ struct MBtilesEventPayload {
   key: String,
   source_id: String,
   path: Option<String>,
+  source_type: Option<String>,
+  layer_type: Option<String>,
   json_url: Option<String>,
 }
 
@@ -53,7 +55,13 @@ fn reload_mbtiles(path: String, window: Window) {
   reload(&mb_tiles_id);
 }
 #[tauri::command]
-fn setup_mbtiles(key: String, path: Option<String>, window: Window) {
+fn setup_mbtiles(
+  key: String,
+  path: Option<String>,
+  source_type: Option<String>,
+  layer_type: Option<String>,
+  window: Window,
+) {
   if path.is_none() {
     return;
   }
@@ -64,7 +72,13 @@ fn setup_mbtiles(key: String, path: Option<String>, window: Window) {
   let window_ = window.clone();
   let mb_tiles_id = format!("{:x}", md5::compute(path.clone().unwrap().as_bytes()));
 
-  // println!("setup_mbtiles {} {}", path.clone().unwrap(), mb_tiles_id);
+  // println!(
+  //   "setup_mbtiles {} {} {} {}",
+  //   path.clone().unwrap(),
+  //   mb_tiles_id,
+  //   source_type.as_ref().map_or("not found", String::as_str),
+  //   layer_type.as_ref().map_or("not found", String::as_str)
+  // );
   set_mbtiles(
     &mb_tiles_id,
     path_buf,
@@ -93,6 +107,8 @@ fn setup_mbtiles(key: String, path: Option<String>, window: Window) {
         key: key.clone(),
         source_id: mb_tiles_id.clone(),
         path: file_path.clone(),
+        source_type: source_type.clone(),
+        layer_type: layer_type.clone(),
         json_url: if file_path.is_none() {
           None
         } else {
@@ -133,41 +149,46 @@ fn main() {
       ]),
     ))
   }
-  
-  menu = menu.add_submenu(Submenu::new(
-    "File",
-    Menu::with_items([
-      CustomMenuItem::new("open", "Open...")
-        .accelerator("CmdOrControl+O")
-        .into(),
-      MenuItem::CloseWindow.into(),
-    ]),
-  )).add_submenu(Submenu::new(
-    "Edit",
-    Menu::with_items([
-      MenuItem::Separator.into(),
-      MenuItem::Copy.into(),
-      #[cfg(not(target_os = "macos"))]
-      MenuItem::Separator.into(),
-    ]),
-  )).add_submenu(Submenu::new(
-    "View",
-    Menu::with_items([MenuItem::EnterFullScreen.into()]),
-  )).add_submenu(Submenu::new(
-    "Window",
-    Menu::with_items([MenuItem::Minimize.into(), MenuItem::Zoom.into()]),
-  )).add_submenu(Submenu::new(
-    "Help",
-    Menu::with_items([CustomMenuItem::new("learn_more", "Learn More").into()]),
-  ));
+
+  menu = menu
+    .add_submenu(Submenu::new(
+      "File",
+      Menu::with_items([
+        CustomMenuItem::new("open", "Open...")
+          .accelerator("CmdOrControl+O")
+          .into(),
+        MenuItem::CloseWindow.into(),
+      ]),
+    ))
+    .add_submenu(Submenu::new(
+      "Edit",
+      Menu::with_items([
+        MenuItem::Separator.into(),
+        MenuItem::Copy.into(),
+        #[cfg(not(target_os = "macos"))]
+        MenuItem::Separator.into(),
+      ]),
+    ))
+    .add_submenu(Submenu::new(
+      "View",
+      Menu::with_items([MenuItem::EnterFullScreen.into()]),
+    ))
+    .add_submenu(Submenu::new(
+      "Window",
+      Menu::with_items([MenuItem::Minimize.into(), MenuItem::Zoom.into()]),
+    ))
+    .add_submenu(Submenu::new(
+      "Help",
+      Menu::with_items([CustomMenuItem::new("learn_more", "Learn More").into()]),
+    ));
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![setup_mbtiles, reload_mbtiles])
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .menu(menu)
     .setup(|app| {
       WindowBuilder::new(app, "main", WindowUrl::default())
-      .title("MBTiles Viewer")
-      // .resizable(true)
+        .title("MBTiles Viewer")
+        // .resizable(true)
         // .decorations(true)
         // .always_on_top(false)
         // .inner_size(1400.0, 850.0)

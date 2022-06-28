@@ -95,7 +95,7 @@
 
     const currentFile = localStorage.getItem('currentMBtiles');
     if (currentFile && currentFile !== 'undefined') {
-      setupMBtiles(currentFile);
+      setupMBtiles({ filePath: currentFile });
     }
   });
 
@@ -124,7 +124,7 @@
       removeDataSource('secondary', source, true, false);
     });
     mainSourcesOld.forEach((source) => {
-      setupMBtiles(source.path);
+      setupMBtiles({ filePath: source.path });
     });
   }
 
@@ -132,7 +132,12 @@
     ? [localStorage.getItem('currentSecondaryMBtiles')]
     : [];
   let hasSources = false;
-  async function setupMBtiles(filePath, key = 'main') {
+  async function setupMBtiles({
+    filePath,
+    key = 'main',
+    source_type = undefined,
+    layer_type = undefined,
+  }) {
     try {
       const sources = key === 'secondary' ? secondarySources : mainSources;
       if (sources.find((s) => s.path === filePath)) {
@@ -142,6 +147,8 @@
       await invoke('setup_mbtiles', {
         key,
         path: filePath,
+        sourceType: source_type,
+        layerType: layer_type,
       });
     } catch (error) {
       console.error(error);
@@ -282,7 +289,7 @@
   }
 
   async function removeDataSource(key, source, clearIfEmpty = true, canRemoveFromStorage = true) {
-    console.log('removeDataSource', key, source, clearIfEmpty);
+    // console.log('removeDataSource', key, source, clearIfEmpty);
     const resultMap = key === 'main' ? mainMap : secondaryMap;
     const layers = source.layers;
     const layerIds =
@@ -317,7 +324,7 @@
     }
   }
   function updateMainSourcesCount(clearIfEmpty = true) {
-    console.log('updateMainSourcesCount', clearIfEmpty);
+    // console.log('updateMainSourcesCount', clearIfEmpty);
     hasSources = mainSources.length > 0;
     if (hasSources) {
       localStorage.setItem('currentMBtiles', mainSources[0].path);
@@ -332,7 +339,7 @@
 
   async function addRasterMBtiles(
     resultMap: Map,
-    { key, path, json_url, source_id },
+    { key, path, json_url, source_id, source_type, layer_type },
     sourceData,
     createSourceLayer = true
   ) {
@@ -343,8 +350,9 @@
 
     function onMapLoaded() {
       if (createSourceLayer) {
+        // console.log('addRasterMBtiles', path, json_url, source_id, key, source_type, layer_type);
         resultMap.addSource(sourceData.id, {
-          type: 'raster',
+          type: source_type || 'raster',
           tiles: sourceData.tiles,
 
           minzoom: sourceData.minzoom,
@@ -353,7 +361,7 @@
         });
         resultMap.addLayer({
           id: sourceData.id + '-layer',
-          type: 'raster',
+          type: layer_type || 'raster',
           source: sourceData.id,
           minzoom: 0,
           maxzoom: 24,
@@ -378,14 +386,14 @@
     }
   }
   async function addVectorMBtiles(resultMap: Map, { key, path, json_url, source_id }, vectorData) {
-    console.log(
-      'addVectorMBtiles',
-      key,
-      path,
-      json_url,
-      !!resultMap,
-      resultMap && resultMap.loaded()
-    );
+    // console.log(
+    //   'addVectorMBtiles',
+    //   key,
+    //   path,
+    //   json_url,
+    //   !!resultMap,
+    //   resultMap && resultMap.loaded()
+    // );
     if (!vectorData) {
       vectorData = await (await fetch(json_url)).json();
     }
@@ -428,7 +436,9 @@
       if (key === 'main') {
         mainSources.push(vectorData);
         mainSources = mainSources;
-        secondarySourcesToLoadOnMainMapLoad.forEach((s) => setupMBtiles(s, 'secondary'));
+        secondarySourcesToLoadOnMainMapLoad.forEach((s) =>
+          setupMBtiles({ filePath: s, key: 'secondary' })
+        );
       } else {
         secondarySources.push(vectorData);
         secondarySources = secondarySources;
@@ -442,7 +452,7 @@
     }
   }
 
-  async function createMap({ key, path, json_url, source_id }) {
+  async function createMap({ key, path, json_url, source_id, source_type, layer_type }) {
     let containerKey = key;
     let resultMap: Map;
     let sourceData = await (await fetch(json_url)).json();
@@ -513,7 +523,12 @@
         zoom,
         interactive: true,
       });
-      addRasterMBtiles(resultMap, { key, path, json_url, source_id }, sourceData, false);
+      addRasterMBtiles(
+        resultMap,
+        { key, path, json_url, source_id, source_type, layer_type },
+        sourceData,
+        false
+      );
     }
 
     // if (key === 'main') {
@@ -526,7 +541,7 @@
   }
 
   function clearMaps() {
-    console.log('clearMaps');
+    // console.log('clearMaps');
     try {
       if (mainMap) {
         mainMap.remove();
@@ -544,7 +559,7 @@
     }
   }
   function clearSecondaryMap(canRemoveFromStorage = true) {
-    console.log('clearSecondaryMap', canRemoveFromStorage);
+    // console.log('clearSecondaryMap', canRemoveFromStorage);
     if (secondaryMap) {
       try {
         secondaryMap.remove();
@@ -561,7 +576,7 @@
       secondarySplit.setPercent(100);
       canRemoveFromStorage && localStorage.removeItem('currentSecondaryMBtiles');
     } else {
-      addMBTiles('secondary');
+      addMBTiles({ key: 'secondary' });
     }
   }
 
@@ -569,24 +584,30 @@
     path,
     json_url,
     source_id,
+    source_type,
+    layer_type,
     key,
   }: {
     path: string;
     json_url: string;
     key: string;
     source_id: string;
+    source_type?: string;
+    layer_type?: string;
   }) {
-    console.log(
-      'onMBTilesSet',
-      path,
-      json_url,
-      source_id,
-      key,
-      hasSources,
-      !!mainMap,
-      !!secondaryMap,
-      !!compareMap
-    );
+    // console.log(
+    //   'onMBTilesSet',
+    //   path,
+    //   json_url,
+    //   source_id,
+    //   key,
+    //   source_type,
+    //   layer_type,
+    //   hasSources,
+    //   !!mainMap,
+    //   !!secondaryMap,
+    //   !!compareMap
+    // );
     // if (key === 'main') {
     //   clearMainMap();
     // }
@@ -603,14 +624,18 @@
       }
       if (key === 'main') {
         if (!mainMap) {
-          mainMap = await createMap({ key, path, json_url, source_id });
+          mainMap = await createMap({ key, path, json_url, source_id, source_type, layer_type });
         } else {
           let sourceData = await (await fetch(json_url)).json();
 
           if (sourceData.vector_layers || sourceData.Layer) {
             addVectorMBtiles(mainMap, { key, path, json_url, source_id }, sourceData);
           } else {
-            addRasterMBtiles(mainMap, { key, path, json_url, source_id }, sourceData);
+            addRasterMBtiles(
+              mainMap,
+              { key, path, json_url, source_id, source_type, layer_type },
+              sourceData
+            );
           }
         }
       } else if (key === 'secondary') {
@@ -619,10 +644,21 @@
           if (sourceData.vector_layers || sourceData.Layer) {
             addVectorMBtiles(secondaryMap, { key, path, json_url, source_id }, sourceData);
           } else {
-            addRasterMBtiles(secondaryMap, { key, path, json_url, source_id }, sourceData);
+            addRasterMBtiles(
+              secondaryMap,
+              { key, path, json_url, source_id, source_type, layer_type },
+              sourceData
+            );
           }
         } else {
-          secondaryMap = await createMap({ key, path, json_url, source_id });
+          secondaryMap = await createMap({
+            key,
+            path,
+            json_url,
+            source_id,
+            source_type,
+            layer_type,
+          });
           mainPopupOnClick = true;
           secondaryPopupOnClick = true;
           if (compareMap) {
@@ -638,14 +674,15 @@
     }
   }
 
-  async function addMBTiles(key) {
+  async function addMBTiles({ key, source_type = undefined, layer_type = undefined }) {
     try {
+      console.log('addMBTiles', key, source_type, layer_type);
       const resPath = await open({
         filters: [],
         multiple: false,
         directory: false,
       });
-      setupMBtiles(resPath, key);
+      setupMBtiles({ filePath: resPath, key, source_type, layer_type });
     } catch (error) {
       console.error(error);
     }
@@ -653,7 +690,7 @@
 
   function handleDroppedFile(paths: string[]) {
     // ...
-    setupMBtiles(paths[0]);
+    setupMBtiles({ filePath: paths[0] });
   }
 
   listen<string>('tauri://menu', ({ payload }) => {
@@ -685,7 +722,7 @@
     if (compareMap) {
       clearSecondaryMap();
     } else {
-      addMBTiles('secondary');
+      addMBTiles({ key: 'secondary' });
     }
   }
 
@@ -887,7 +924,7 @@
           slot="primary"
           sources={mainSources}
           map={mainMap}
-          on:add_source={() => addMBTiles('main')}
+          on:add_source={(event) => addMBTiles({ key: 'main', ...event.detail })}
           on:remove_source={(event) => removeDataSource('main', event.detail)}
           bind:wantPopup
           bind:wantTileBounds
@@ -949,7 +986,7 @@
                 <Menu
                   id="secondary"
                   on:remove_source={(event) => removeDataSource('secondary', event.detail)}
-                  on:add_source={() => addMBTiles('secondary')}
+                  on:add_source={(event) => addMBTiles({ key: 'secondary', ...event.detail })}
                   sources={secondarySources}
                   map={secondaryMap}
                   bind:wantPopup

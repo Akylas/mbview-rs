@@ -236,4 +236,9 @@
     </ExpandableTile>
   {/each}
   <Button icon={Add16} on:click={() => dispatch('add_source')}>{$_('add_mbtiles')}</Button>
+  <Button
+    icon={Add16}
+    on:click={() => dispatch('add_source', { source_type: 'raster-dem', layer_type: 'hillshade' })}
+    >{$_('add_hillshade')}</Button
+  >
 </div>
