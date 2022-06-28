@@ -101,7 +101,7 @@ $ pnpm dev
 
 ## Contribution Guide
 
-We highly encourage you to contribute to this project (even if you are a beginner). And if you finally want to contribute to this project, please read [our contribution guide](https://xplorer.space/docs/community/Contributing).
+We highly encourage you to contribute to this project (even if you are a beginner). And if you finally want to contribute to this project, please read [our contribution guide](https://github.com/Akylas/mbview-rs/blob/master/CONTRIBUTING.md).
 
 ---
 
