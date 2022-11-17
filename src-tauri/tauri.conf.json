@@ -37,7 +37,7 @@
         "frameworks": [],
         "minimumSystemVersion": "10.13",
         "exceptionDomain": "localhost",
-        "signingIdentity": null,
+        "signingIdentity": "Apple Development: Martin Guillon (4ZZRPWM525)",
         "entitlements": null
       },
       "windows": {
@@ -53,7 +53,7 @@
       "clipboard":{
         "all":true
       },
-      "all": false,
+      "all": true,
       "path":{
         "all":true
       },
@@ -77,7 +77,7 @@
       }
     },
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: asset: mbtiles: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
+      "csp": "default-src blob: data: filesystem: ws: wss: asset: mbtiles: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; worker-src blob:"
     }
   }
 }
