@@ -160,23 +160,20 @@ fn main() {
         MenuItem::CloseWindow.into(),
       ]),
     ))
-    .add_submenu(Submenu::new(
-      "Edit",
-      Menu::with_items([
-        MenuItem::Separator.into(),
-        MenuItem::Copy.into(),
-        #[cfg(not(target_os = "macos"))]
-        MenuItem::Separator.into(),
-      ]),
-    ))
-    .add_submenu(Submenu::new(
-      "View",
-      Menu::with_items([MenuItem::EnterFullScreen.into()]),
-    ))
-    .add_submenu(Submenu::new(
-      "Window",
-      Menu::with_items([MenuItem::Minimize.into(), MenuItem::Zoom.into()]),
-    ))
+    // .add_submenu(Submenu::new(
+    //   "Edit",
+    //   Menu::with_items([
+    //     MenuItem::Copy.into()
+    //   ]),
+    // ))
+    // .add_submenu(Submenu::new(
+    //   "View",
+    //   Menu::with_items([MenuItem::EnterFullScreen.into()]),
+    // ))
+    // .add_submenu(Submenu::new(
+    //   "Window",
+    //   Menu::with_items([MenuItem::Minimize.into(), MenuItem::Zoom.into()]),
+    // ))
     .add_submenu(Submenu::new(
       "Help",
       Menu::with_items([CustomMenuItem::new("learn_more", "Learn More").into()]),
