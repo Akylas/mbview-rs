@@ -274,9 +274,10 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
   };
 
   let mut statement = connection
-    .prepare(r#"SELECT name, value FROM metadata WHERE value IS NOT ''"#)
+    .prepare(r#"SELECT name, value FROM metadata WHERE value IS NOT NULL"#)
     .unwrap();
   let mut metadata_rows = statement.query([]).unwrap();
+  println!("get_tile_details {}", path.clone().to_str().unwrap());
 
   while let Some(row) = metadata_rows.next().unwrap() {
     let label: String = row.get(0).unwrap();
@@ -286,8 +287,18 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
       "version" => metadata.version = Some(value),
       "bounds" => metadata.bounds = Some(value.split(',').filter_map(|s| s.parse().ok()).collect()),
       "center" => metadata.center = Some(value.split(',').filter_map(|s| s.parse().ok()).collect()),
-      "minzoom" => metadata.minzoom = Some(value.parse().unwrap()),
-      "maxzoom" => metadata.maxzoom = Some(value.parse().unwrap()),
+      "minzoom" => {
+        metadata.minzoom = Some(match value.parse::<u32>() {
+          Ok(value) => value,
+          Err(_) => 0,
+        })
+      }
+      "maxzoom" => {
+        metadata.maxzoom = Some(match value.parse::<u32>() {
+          Ok(value) => value,
+          Err(_) => 19,
+        })
+      }
       "description" => metadata.description = Some(value),
       "attribution" => metadata.attribution = Some(value),
       "type" => metadata.layer_type = Some(value),
@@ -297,6 +308,7 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
       _ => (),
     }
   }
+  println!("get_tile_details done {}", path.clone().to_str().unwrap());
 
   Ok(metadata)
 }
