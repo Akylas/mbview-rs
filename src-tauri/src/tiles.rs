@@ -244,7 +244,7 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
 
   let tile_format = match get_data_format_via_query(tile_name, &connection, "tile") {
     Ok(tile_format) => match tile_format {
-      DataFormat::Unknown => return Err(Error::UnknownTileFormat(String::from(tile_name))),
+      DataFormat::Unknown => DataFormat::Pbf,
       DataFormat::Gzip => DataFormat::Pbf, // GZIP masks PBF format too
       _ => tile_format,
     },

@@ -83,7 +83,7 @@ pub fn decode(data: Vec<u8>, data_type: DataFormat) -> Result<Vec<u8>> {
             z.read_to_end(&mut s).unwrap();
             Ok(s)
         }
-        _ => Err(Error::InvalidDataFormat(String::from(data_type.format()))),
+        _ => Ok(data),
     }
 }
 
