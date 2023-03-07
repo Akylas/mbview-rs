@@ -9,7 +9,7 @@
   import { open } from '@tauri-apps/api/dialog';
   import { listen, UnlistenFn } from '@tauri-apps/api/event';
   import { readTextFile } from '@tauri-apps/api/fs';
-  import { resolve, resourceDir } from '@tauri-apps/api/path';
+  import { dirname, resolve, resourceDir } from '@tauri-apps/api/path';
   import { open as openURl } from '@tauri-apps/api/shell';
   import {
     DataTable,
@@ -595,19 +595,19 @@
     source_type?: string;
     layer_type?: string;
   }) {
-    // console.log(
-    //   'onMBTilesSet',
-    //   path,
-    //   json_url,
-    //   source_id,
-    //   key,
-    //   source_type,
-    //   layer_type,
-    //   hasSources,
-    //   !!mainMap,
-    //   !!secondaryMap,
-    //   !!compareMap
-    // );
+    console.log(
+      'onMBTilesSet',
+      path,
+      json_url,
+      source_id,
+      key,
+      source_type,
+      layer_type,
+      hasSources,
+      !!mainMap,
+      !!secondaryMap,
+      !!compareMap
+    );
     // if (key === 'main') {
     //   clearMainMap();
     // }
@@ -674,6 +674,7 @@
     }
   }
 
+  let lastFolder: string = localStorage.getItem('lastOpenFolder');
   async function addMBTiles({ key, source_type = undefined, layer_type = undefined }) {
     try {
       console.log('addMBTiles', key, source_type, layer_type);
@@ -681,8 +682,13 @@
         filters: [],
         multiple: false,
         directory: false,
+        defaultPath: lastFolder,
       });
-      setupMBtiles({ filePath: resPath, key, source_type, layer_type });
+      if (typeof resPath === 'string') {
+        setupMBtiles({ filePath: resPath, key, source_type, layer_type });
+        lastFolder = await dirname(resPath);
+        localStorage.setItem('lastOpenFolder', lastFolder);
+      }
     } catch (error) {
       console.error(error);
     }
