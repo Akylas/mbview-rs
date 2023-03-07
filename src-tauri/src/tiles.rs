@@ -263,8 +263,8 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
     grid_format: None,
     bounds: None,
     center: None,
-    minzoom: None,
-    maxzoom: None,
+    minzoom: Some(0),
+    maxzoom: Some(19),
     description: None,
     attribution: None,
     layer_type: None,
@@ -277,7 +277,7 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
     .prepare(r#"SELECT name, value FROM metadata WHERE value IS NOT NULL"#)
     .unwrap();
   let mut metadata_rows = statement.query([]).unwrap();
-  println!("get_tile_details {}", path.clone().to_str().unwrap());
+  // println!("get_tile_details {}", path.clone().to_str().unwrap());
 
   while let Some(row) = metadata_rows.next().unwrap() {
     let label: String = row.get(0).unwrap();
@@ -308,7 +308,7 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
       _ => (),
     }
   }
-  println!("get_tile_details done {}", path.clone().to_str().unwrap());
+  // println!("get_tile_details done {}", path.clone().to_str().unwrap());
 
   Ok(metadata)
 }
