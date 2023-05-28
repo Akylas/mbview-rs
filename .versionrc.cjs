@@ -1,6 +1,6 @@
 const tracker = {
   filename: './src-tauri/Cargo.toml',
-  updater: require('./tauriVersioner')
+  updater: require('./tauriVersioner.cjs')
 }
 
 module.exports = {
