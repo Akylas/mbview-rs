@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+# [1.7.0](https://github.com/Akylas/mbview-rs/compare/v1.6.0...v1.7.0) (2023-05-28)
+
+
+### Bug Fixes
+
+* default zoom levels ([f9220d4](https://github.com/Akylas/mbview-rs/commit/f9220d4cf1154989a43bd0c30d48b471c6b4fb3e))
+* fix for copy tile to geojson ([ca411f5](https://github.com/Akylas/mbview-rs/commit/ca411f5bfa5253b9f73bf8ba0a0a0e0fda551433))
+* full reload now working ([4cab82e](https://github.com/Akylas/mbview-rs/commit/4cab82e7252bb7534541d7c6aca8672491435ab4))
+* handle more pbf formats ([c27256c](https://github.com/Akylas/mbview-rs/commit/c27256c1f7be20dc267256192d2dcbf3b473d642))
+* handle wrong minzoom/maxzoom in metadata ([dcbd568](https://github.com/Akylas/mbview-rs/commit/dcbd56844291de2bd8c581465bb7cea17018de14))
+* prevent crash if mbtiles file does not exist ([2cf5e83](https://github.com/Akylas/mbview-rs/commit/2cf5e83024e8d6dac035cd098947220f38b9186e))
+* reload data fix ([bbbc9f2](https://github.com/Akylas/mbview-rs/commit/bbbc9f26e6e1d399b0e2e0527b36608923f70bba))
+* reload improvement ([3ebbb77](https://github.com/Akylas/mbview-rs/commit/3ebbb7748666cfce1903378a802d5854a1bd08ba))
+* reload split position saved ([6ffb3cc](https://github.com/Akylas/mbview-rs/commit/6ffb3cc682d4665894f5dbfef4095ad1e1549673))
+* removed menus ([3634a6f](https://github.com/Akylas/mbview-rs/commit/3634a6fc62e4310c0d7d3ff3d4c653adf37dd8ec))
+* sort selected items ([8962ccd](https://github.com/Akylas/mbview-rs/commit/8962ccde4ab271ade528f7db6d33af366ed0a035))
+* updated tauri ([fd21533](https://github.com/Akylas/mbview-rs/commit/fd215336d831678916bf74ed759e299039333550))
+
+
+### Features
+
+* hillshade layer support ([7832822](https://github.com/Akylas/mbview-rs/commit/783282270a82d6f48fa27dd790ce6ab8694a02a7))
+* last opened folder ([bc7e733](https://github.com/Akylas/mbview-rs/commit/bc7e7331fa68a55839e0a31eb15af9456f8a68cf))
+
+
+
 ## [1.6.0](https://github.com/Akylas/mbview-rs/compare/v1.5.2...v1.6.0) (2022-05-26)
 
 
