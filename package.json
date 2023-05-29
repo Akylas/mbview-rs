@@ -34,7 +34,7 @@
     "test": "cargo test --manifest-path ./src-tauri/Cargo.toml",
     "format": "prettier --write --plugin-search-dir=. src *.js && eslint --fix src *.js",
     "check": "cargo check --manifest-path src-tauri/Cargo.toml && eslint src *.js && svelte-check",
-    "release": "standard-version --commit-all --preset angular"
+    "release": "standard-version --commit-all"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.6.3",
