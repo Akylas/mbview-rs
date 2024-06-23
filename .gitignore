@@ -3,5 +3,6 @@ node_modules
 build
 
 src-tauri/target
+src-tauri/gen
 src-tauri/WixTools
 /.vscode
