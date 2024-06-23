@@ -73,7 +73,7 @@ text-align: right;
   overflow: hidden;
 }
 
-#menu {
+/* #menu {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -88,10 +88,19 @@ text-align: right;
   right: 10px;
   max-height: 90%;
   z-index: 1;
-  background-color: white;
+  background-color: red;
   overflow: auto;
   padding: 20px;
 }
+
+
+.light #menu-container {
+  background-color:white !important;
+}
+.dark #menu-container {
+  background-color:#393939 !important;
+} */
+
 .icon.big {
   line-height: 40px;
 }
@@ -188,6 +197,18 @@ text-align: right;
 }
 .dark .maplibregl-compare {
   background-color:white !important;
+}
+.dark .maplibregl-popup-content {
+  background-color:#393939 !important;
+}
+.light .maplibregl-popup-content {
+  background-color:white !important;
+}
+.dark .maplibregl-popup-tip {
+  border-top-color:#393939 !important;
+}
+.light .maplibregl-popup-tip {
+  border-top-color:white !important;
 }
 
 .light .mapboxgl-popup-content {

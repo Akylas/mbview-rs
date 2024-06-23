@@ -1,26 +1,27 @@
 <script lang="ts">
+  import FileDrop from '@akylas/svelte-tauri-filedrop';
   import Split from '@geoffcox/svelte-splitter/src/Split.svelte';
   import { pointToTile } from '@mapbox/tilebelt';
   import { VectorTile } from '@mapbox/vector-tile';
   import Compare from '@maplibre/maplibre-gl-compare';
   import '@maplibre/maplibre-gl-compare/dist/maplibre-gl-compare.css';
-  import { invoke } from '@tauri-apps/api';
-  import { writeText } from '@tauri-apps/api/clipboard';
-  import { open } from '@tauri-apps/api/dialog';
+  import { invoke } from '@tauri-apps/api/core';
   import { listen, UnlistenFn } from '@tauri-apps/api/event';
-  import { readTextFile } from '@tauri-apps/api/fs';
   import { dirname, resolve, resourceDir } from '@tauri-apps/api/path';
-  import { open as openURl } from '@tauri-apps/api/shell';
+  import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+  import { open } from '@tauri-apps/plugin-dialog';
+  import { readTextFile } from '@tauri-apps/plugin-fs';
+  import { open as openURl } from '@tauri-apps/plugin-shell';
   import {
-    DataTable,
-    Header,
-    HeaderAction,
-    HeaderGlobalAction,
-    HeaderUtilities,
-    Select,
-    SelectItem,
-    SkipToContent,
-    Theme,
+      DataTable,
+      Header,
+      HeaderAction,
+      HeaderGlobalAction,
+      HeaderUtilities,
+      Select,
+      SelectItem,
+      SkipToContent,
+      Theme,
   } from 'carbon-components-svelte';
   import type { CarbonTheme } from 'carbon-components-svelte/types/Theme/Theme.svelte';
   import CopyFile from 'carbon-icons-svelte/lib/CopyFile.svelte';
@@ -40,7 +41,6 @@
   import dark from 'svelte-highlight/styles/nnfx-dark';
   import light from 'svelte-highlight/styles/nnfx-light';
   import { _ } from 'svelte-i18n';
-  import FileDrop from 'svelte-tauri-filedrop';
   import ContextMenu from './ContextMenu.svelte';
   import ContextMenuOption from './ContextMenuOption.svelte';
   import type { Feature } from './Map';
@@ -64,6 +64,7 @@
   // let mapSources: string[] = [];
   let unlistener: UnlistenFn;
   let unlistenerReload: UnlistenFn;
+  let unlistenMenu: UnlistenFn;
 
   let mainFeatures: Feature[];
   let secondaryFeatures: Feature[];
@@ -88,7 +89,14 @@
         onMBTilesSet(event.payload);
       }
     );
-
+    // unlistenMenu = await getCurrent().onMenuClicked(({ payload: menuId }) => {
+    //   console.log('onMenuClicked', menuId);
+    //   switch (menuId) {
+    //     case 'learn_more':
+    //       openURl(REPO_URL);
+    //       break;
+    //   }
+    // });
     unlistenerReload = await listen<{ message: string }>('reload-mbtiles', (event) => {
       [mainMap, secondaryMap].forEach(reloadMap);
     });
@@ -140,6 +148,7 @@
   }) {
     try {
       const sources = key === 'secondary' ? secondarySources : mainSources;
+      console.log('setupMBtiles ', filePath, key);
       if (sources.find((s) => s.path === filePath)) {
         console.log('setupMBtiles source already loaded', filePath, key);
         return;
@@ -164,6 +173,7 @@
   onDestroy(() => {
     unlistener();
     unlistenerReload();
+    unlistenMenu();
   });
 
   function brightColor(layerId, alpha?) {
@@ -684,9 +694,10 @@
         directory: false,
         defaultPath: lastFolder,
       });
-      if (typeof resPath === 'string') {
-        setupMBtiles({ filePath: resPath, key, source_type, layer_type });
-        lastFolder = await dirname(resPath);
+      console.log('resPath', resPath)
+      if (resPath) {
+        setupMBtiles({ filePath: resPath.path, key, source_type, layer_type });
+        lastFolder = await dirname(resPath.path);
         localStorage.setItem('lastOpenFolder', lastFolder);
       }
     } catch (error) {
@@ -699,13 +710,6 @@
     setupMBtiles({ filePath: paths[0] });
   }
 
-  listen<string>('tauri://menu', ({ payload }) => {
-    switch (payload) {
-      case 'learn_more':
-        openURl(REPO_URL);
-        break;
-    }
-  });
   let theme: CarbonTheme = 'g90';
 
   let bottomPanelPercent = 75;
@@ -841,7 +845,7 @@
       const mapEvent = new MapMouseEvent(event.type, map as any, event.detail);
       const lngLat = mapEvent.lngLat;
       const tile = pointToTile(lngLat.lng, lngLat.lat, Math.floor(map.getZoom()));
-      // console.log('copyTileAsGeoJSON', lngLat, tile);
+      console.log('copyTileAsGeoJSON', lngLat, tile);
       const sources = key === 'secondary' ? secondarySources : mainSources;
       let result = {};
       for (let index = 0; index < sources.length; index++) {
@@ -852,10 +856,12 @@
           )
         ).arrayBuffer();
 
+        console.log('buffer', buffer);
         let vt = new VectorTile(new Pbf(buffer));
         let dumpedTile = dumpTile(vt);
         result[s.path] = dumpedTile;
       }
+      console.log('result', result);
       if (Object.keys(result).length === 1) {
         writeText(JSON.stringify(result[Object.keys(result)[0]]));
       } else {

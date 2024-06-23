@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 // use std::sync::Arc;
-use hotwatch::{Event, Hotwatch};
+use hotwatch::{Event, EventKind, Hotwatch};
 use std::sync::Mutex;
 
 use r2d2_sqlite::SqliteConnectionManager;
@@ -128,7 +128,7 @@ pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) 
   // println!("set_mbtiles {}", key);
   if has_tilesetsdata(key) {
     let mut hash_data = TILESET_MAP.lock().unwrap();
-    let mut data = hash_data.get_mut(key).unwrap();
+    let data = hash_data.get_mut(key).unwrap();
     match WATCHER.lock().unwrap().unwatch(&data.path) {
       Ok(_) => {}
       Err(err) => println!("error unwatch {}", err),
@@ -147,7 +147,7 @@ pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) 
       .unwrap()
       .watch(&path.clone(), move |event: Event| {
         // println!("mbtiles changed {}", path.clone().to_str().unwrap());
-        if let Event::Write(_) = event {
+        if let EventKind::Modify(_) = event.kind {
           reload(&watch_key);
         }
       })
@@ -169,7 +169,7 @@ pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) 
       .lock()
       .unwrap()
       .watch(&path.clone(), move |event: Event| {
-        if let Event::Write(_) = event {
+        if let EventKind::Modify(_) = event.kind {
           reload(&watch_key);
         }
       })
@@ -182,7 +182,7 @@ pub fn reload(key: &String) {
   if has_tilesetsdata(key) {
     // println!("has_tilesetsdata {}", key);
     let mut hash_data = TILESET_MAP.lock().unwrap();
-    let mut data = hash_data.get_mut(key).unwrap();
+    let data = hash_data.get_mut(key).unwrap();
     data.data = match get_tile_details(&data.path) {
       Ok(tile_meta) => Some(tile_meta),
       Err(_) => None,

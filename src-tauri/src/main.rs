@@ -21,9 +21,12 @@ use std::thread;
 use std::env;
 
 use std::path::PathBuf;
+use tauri::menu::{
+  MenuBuilder, MenuItemBuilder, SubmenuBuilder,
+};
 use tauri::Manager;
-use tauri::Window;
-use tauri::{AboutMetadata, CustomMenuItem, Menu, MenuItem, Submenu, WindowBuilder, WindowUrl};
+use tauri::WebviewWindow;
+use tauri::{WebviewWindowBuilder, WebviewUrl};
 
 use crate::tiles::{get_path, reload, set_mbtiles};
 
@@ -49,7 +52,7 @@ struct MBtilesEventPayload {
 }
 
 #[tauri::command]
-fn reload_mbtiles(path: String, window: Window) {
+fn reload_mbtiles(path: String, _window: WebviewWindow) {
   // println!("reload_mbtiles {}", path);
   let mb_tiles_id = format!("{:x}", md5::compute(path.clone().as_bytes()));
   reload(&mb_tiles_id);
@@ -60,7 +63,7 @@ fn setup_mbtiles(
   path: Option<String>,
   source_type: Option<String>,
   layer_type: Option<String>,
-  window: Window,
+  window: WebviewWindow,
 ) {
   if path.is_none() {
     return;
@@ -84,7 +87,7 @@ fn setup_mbtiles(
     path_buf,
     Box::new(move |mb_tiles_id| {
       window_
-        .emit_all(
+        .emit(
           "reload-mbtiles",
           Payload {
             message: mb_tiles_id,
@@ -131,59 +134,76 @@ fn main() {
       std::process::exit(1);
     }
   });
-  let mut menu = Menu::new();
-  #[cfg(target_os = "macos")]
-  {
-    menu = menu.add_submenu(Submenu::new(
-      &ctx.package_info().name,
-      Menu::with_items([
-        MenuItem::About(ctx.package_info().name.clone(), AboutMetadata::new()).into(),
-        MenuItem::Separator.into(),
-        MenuItem::Services.into(),
-        MenuItem::Separator.into(),
-        MenuItem::Hide.into(),
-        MenuItem::HideOthers.into(),
-        MenuItem::ShowAll.into(),
-        MenuItem::Separator.into(),
-        MenuItem::Quit.into(),
-      ]),
-    ))
-  }
 
-  menu = menu
-    .add_submenu(Submenu::new(
-      "File",
-      Menu::with_items([
-        CustomMenuItem::new("open", "Open...")
-          .accelerator("CmdOrControl+O")
-          .into(),
-        MenuItem::CloseWindow.into(),
-      ]),
-    ))
-    // .add_submenu(Submenu::new(
-    //   "Edit",
-    //   Menu::with_items([
-    //     MenuItem::Copy.into()
-    //   ]),
-    // ))
-    // .add_submenu(Submenu::new(
-    //   "View",
-    //   Menu::with_items([MenuItem::EnterFullScreen.into()]),
-    // ))
-    // .add_submenu(Submenu::new(
-    //   "Window",
-    //   Menu::with_items([MenuItem::Minimize.into(), MenuItem::Zoom.into()]),
-    // ))
-    .add_submenu(Submenu::new(
-      "Help",
-      Menu::with_items([CustomMenuItem::new("learn_more", "Learn More").into()]),
-    ));
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![setup_mbtiles, reload_mbtiles])
     .plugin(tauri_plugin_window_state::Builder::default().build())
-    .menu(menu)
+    .plugin(tauri_plugin_fs::init())
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_fs::init())
     .setup(|app| {
-      WindowBuilder::new(app, "main", WindowUrl::default())
+      let  mut menu_builder = MenuBuilder::new(app);
+      #[cfg(target_os = "macos")]
+      {
+        let submenu = SubmenuBuilder::new(app, &ctx.package_info().name)
+          .about(Some(AboutMetadataBuilder::new().build()))
+          .separator()
+          .services()
+          .separator()
+          .hide()
+          .hide_others()
+          .show_all()
+          .separator()
+          .quit()
+          .build()?;
+        menuBuilder = menuBuilder.item(&submenu);
+      }
+      let open = MenuItemBuilder::with_id("open", "Open...")
+      .accelerator("CmdOrControl+O")
+      .build(app)?;
+      menu_builder = menu_builder
+        .item(
+          &SubmenuBuilder::new(app, "File")
+            .item(&open)
+            .close_window()
+            .build()?,
+        )
+        .item(
+          &SubmenuBuilder::new(app, "Help")
+            .item(&MenuItemBuilder::with_id("learn_more", "Learn More").build(app)?)
+            .close_window()
+            .build()?,
+        );
+      // menu = menu
+      //   .item(Submenu::new(
+      //     "File",
+      //     Menu::with_items([
+      //       CustomMenuItem::new("open", "Open...")
+      //         .accelerator("CmdOrControl+O")
+      //         .into(),
+      //       MenuItem::CloseWindow.into(),
+      //     ]),
+      //   ))
+      //   // .add_submenu(Submenu::new(
+      //   //   "Edit",
+      //   //   Menu::with_items([
+      //   //     MenuItem::Copy.into()
+      //   //   ]),
+      //   // ))
+      //   // .add_submenu(Submenu::new(
+      //   //   "View",
+      //   //   Menu::with_items([MenuItem::EnterFullScreen.into()]),
+      //   // ))
+      //   // .add_submenu(Submenu::new(
+      //   //   "Window",
+      //   //   Menu::with_items([MenuItem::Minimize.into(), MenuItem::Zoom.into()]),
+      //   // ))
+      //   .add_submenu(Submenu::new(
+      //     "Help",
+      //     Menu::with_items([CustomMenuItem::new("learn_more", "Learn More").into()]),
+      //   ));
+      app.set_menu(menu_builder.build()?)?;
+      WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("MBTiles Viewer")
         // .resizable(true)
         // .decorations(true)
@@ -191,6 +211,7 @@ fn main() {
         // .inner_size(1400.0, 850.0)
         .inner_size(1400.0, 850.0)
         .min_inner_size(400.0, 200.0)
+        // .additional_browser_args("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-gpu")
         // .skip_taskbar(false)
         // .fullscreen(false)
         .build()?;

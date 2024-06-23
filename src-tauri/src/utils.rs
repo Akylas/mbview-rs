@@ -6,7 +6,7 @@ use flate2::read::{GzDecoder, ZlibDecoder};
 
 use serde::{Deserialize, Serialize};
 
-use crate::errors::{Error, Result};
+use crate::errors::Result;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

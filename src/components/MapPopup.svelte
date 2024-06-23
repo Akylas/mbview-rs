@@ -124,6 +124,9 @@
           <span>({feature['sourceName']})</span>
         {/if}
       </div>
+      {#if feature.geometry.type === 'Point'}
+      <PopupProperty name="latlon" value={`${feature.geometry.coordinates[1]},${feature.geometry.coordinates[0]}`} />
+      {/if}
       {#if feature.id}
         <PopupProperty name="$id" value={feature.id} />
       {/if}

@@ -1,14 +1,14 @@
+use bytes::Bytes;
 use hyper::header::{CONTENT_TYPE, HOST};
-use hyper::{Body, Request, Response, StatusCode};
-
+use hyper::{Request, Response, StatusCode};
 use regex::Regex;
-
 use serde_json::json;
-
+use http_body_util::Full;
 use crate::errors::Result;
 use crate::tiles::{get_data, get_tile_data};
 use crate::utils::{decode, get_blank_image, get_data_format, DataFormat};
 
+type ReplyBody = Full<Bytes>;
 lazy_static! {
   static ref TILE_URL_RE: Regex = Regex::new(
     r"^/(?P<tile_path>.*)/tiles/(?P<z>\d+)/(?P<x>\d+)/(?P<y>\d+)\.(?P<format>[a-zA-Z]+)"
@@ -22,29 +22,29 @@ static INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
 static NOT_FOUND: &[u8] = b"Not Found";
 static NO_CONTENT: &[u8] = b"";
 
-fn not_found() -> Response<Body> {
+fn not_found() -> Response<ReplyBody> {
   Response::builder()
     .status(StatusCode::NOT_FOUND)
-    .body(NOT_FOUND.into())
+    .body(Full::new(NOT_FOUND.into()))
     .unwrap()
 }
 
-fn no_content() -> Response<Body> {
+fn no_content() -> Response<ReplyBody> {
   Response::builder()
     .status(StatusCode::NO_CONTENT)
-    .body(NO_CONTENT.into())
+    .body(Full::new(NO_CONTENT.into()))
     .unwrap()
 }
 
 #[allow(dead_code)]
-fn server_error() -> Response<Body> {
+fn server_error() -> Response<ReplyBody> {
   Response::builder()
     .status(StatusCode::INTERNAL_SERVER_ERROR)
-    .body(INTERNAL_SERVER_ERROR.into())
+    .body(Full::new(INTERNAL_SERVER_ERROR.into()))
     .unwrap()
 }
 
-fn get_host(req: &Request<Body>) -> Option<&str> {
+fn get_host(req: &Request<hyper::body::Incoming>) -> Option<&str> {
   let host = req.uri().host();
   if host.is_some() {
     return host;
@@ -57,7 +57,7 @@ fn get_host(req: &Request<Body>) -> Option<&str> {
   None
 }
 
-pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
+pub async fn get_service(request: Request<hyper::body::Incoming>) -> Result<Response<ReplyBody>> {
   let uri = request.uri();
   let path = uri.path();
   // println!("get_service {}", path);
@@ -88,7 +88,7 @@ pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
                 .header(CONTENT_TYPE, DataFormat::Pbf.content_type())
                 // .header("Cache-Control", "no-cache")
                 .header("Access-Control-Allow-Origin", "*")
-                .body(Body::from(decode(data, data_in_format).unwrap()))
+                .body(From::from(decode(data, data_in_format).unwrap()))
                 .unwrap(),
             );
           }
@@ -104,7 +104,7 @@ pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
               .header(CONTENT_TYPE, DataFormat::new(data_format).content_type())
               // .header("Cache-Control", "no-cache")
               .header("Access-Control-Allow-Origin", "*")
-              .body(Body::from(data))
+              .body(From::from(Bytes::from(data)))
               .unwrap(),
           )
         }
@@ -127,7 +127,7 @@ pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
               )],
               "tilejson": tile_meta.tilejson,
               "scheme": tile_meta.scheme,
-              "id": tile_path.clone(),
+              "id": tile_path,
               "format": tile_meta.tile_format,
               "bounds": tile_meta.bounds,
               "center": tile_meta.center,
@@ -149,7 +149,7 @@ pub async fn get_service(request: Request<Body>) -> Result<Response<Body>> {
             Response::builder()
               .header(CONTENT_TYPE, "application/json")
               .header("Access-Control-Allow-Origin", "*")
-              .body(Body::from(serde_json::to_string(&tile_meta_json).unwrap()))
+              .body(Full::from(serde_json::to_string(&tile_meta_json).unwrap()))
               .unwrap(),
           ); // TODO handle error
              // } else if path == "/reload" {

@@ -1,83 +1,78 @@
 {
-  "package": {
-    "productName": "MBTilesViewer"
-  },
   "build": {
-    "distDir": "../build",
-    "devPath": "http://localhost:3000",
+    "beforeBuildCommand": "npm run build:web",
     "beforeDevCommand": "npm run dev:web",
-    "beforeBuildCommand": "npm run build:web"
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../build"
   },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "targets": [
-        "app",
-        "msi",
-        "deb"
-      ],
-      "identifier": "com.akylas.mbview",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "resources": ["../resources/*"],
-      "externalBin": [],
-      "copyright": "© 2021 Akylas",
-      "category": "DeveloperTool",
-      "shortDescription": "",
-      "longDescription": "",
-      "deb": {
-        "depends": []
-      },
-      "macOS": {
-        "frameworks": [],
-        "minimumSystemVersion": "10.13",
-        "exceptionDomain": "localhost",
-        "signingIdentity": "Apple Development: Martin Guillon (4ZZRPWM525)",
-        "entitlements": null
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+  "productName": "MBTilesViewer",
+  "identifier": "com.akylas.mbview",
+  "plugins": {
+    "fs": {
+      "scope": {
+        "allow": [
+          "**"
+        ],
+        "deny": []
       }
     },
     "updater": {
-      "active": false
+      "endpoints": []
     },
-    "allowlist": {
-      "clipboard":{
-        "all":true
-      },
+    "protocol": {
       "all": true,
-      "path":{
-        "all":true
+      "asset": true
+    }
+  },
+  "app": {
+    "security": {
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
       },
-      "dialog":{
-        "open":true
-      },
-      "shell":{
-        "open": true
-      },
-      "fs":{
-        "readFile": true,
-        "scope": {
-          "allow": ["**"]
-        }
-      },
-      "protocol": {
-        "asset": true,
-        "assetScope": {
-          "allow": ["**"]
-        }
+      "csp": "default-src blob: data: filesystem: ws: wss: asset: mbtiles: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; worker-src blob:; connect-src ipc: https://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "category": "DeveloperTool",
+    "copyright": "© 2021 Akylas",
+    "linux": {
+      "deb": {
+        "depends": []
       }
     },
-    "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: asset: mbtiles: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; worker-src blob:"
+    "externalBin": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "longDescription": "",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "localhost",
+      "frameworks": [],
+      "minimumSystemVersion": "10.13",
+      "signingIdentity": "Apple Development: Martin Guillon (4ZZRPWM525)"
+    },
+    "resources": [
+      "../resources/*"
+    ],
+    "shortDescription": "",
+    "targets": [
+      "app",
+      "msi",
+      "deb"
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
     }
   }
 }

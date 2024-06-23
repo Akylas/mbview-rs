@@ -1,6 +1,6 @@
-import {extend, bindAll} from 'maplibre-gl/src/util/util';
+import {extend} from 'maplibre-gl/src/util/util';
 
-import { Map } from 'maplibre-gl';
+import type { Map } from 'maplibre-gl';
 import type {ControlPosition, IControl} from 'maplibre-gl';
 
 export type Unit = 'imperial' | 'metric' | 'nautical';
@@ -39,17 +39,13 @@ export class ScaleControl implements IControl {
     constructor(options: ScaleOptions) {
         this.options = extend({}, defaultOptions, options);
 
-        bindAll([
-            '_onMove',
-            'setUnit'
-        ], this);
     }
 
     getDefaultPosition(): ControlPosition {
         return 'bottom-left';
     }
 
-    _onMove() {
+    _onMove = () => {
         updateScale(this._map, this._container, this.options);
     }
 
@@ -75,7 +71,7 @@ export class ScaleControl implements IControl {
      *
      * @param unit Unit of the distance (`'imperial'`, `'metric'` or `'nautical'`).
      */
-    setUnit(unit: Unit) {
+    setUnit = (unit: Unit)=> {
         this.options.unit = unit;
         updateScale(this._map, this._container, this.options);
     }
