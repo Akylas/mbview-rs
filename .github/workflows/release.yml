@@ -95,8 +95,6 @@ jobs:
 
       - name: Install deps
         uses: bahmutov/npm-install@v1
-        env:
-          YARN_ENABLE_IMMUTABLE_INSTALLS: false
         with:
           install-command: yarn install --immutable --silent
 
