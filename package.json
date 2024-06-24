@@ -89,5 +89,6 @@
     "scripts": {
       "postchangelog": "sed -r -e 's/^#{1,3} \\[/## [/' -i '' CHANGELOG.md"
     }
-  }
+  },
+  "packageManager": "yarn@4.3.1"
 }
