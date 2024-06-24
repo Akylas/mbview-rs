@@ -7,3 +7,4 @@ src-tauri/gen
 src-tauri/WixTools
 /.vscode
 /.env
+/.yarn/install-state.gz
