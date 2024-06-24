@@ -145,18 +145,17 @@ fn main() {
       let  mut menu_builder = MenuBuilder::new(app);
       #[cfg(target_os = "macos")]
       {
-        let submenu = SubmenuBuilder::new(app, &ctx.package_info().name)
-          .about(Some(AboutMetadataBuilder::new().build()))
-          .separator()
-          .services()
-          .separator()
-          .hide()
-          .hide_others()
-          .show_all()
-          .separator()
-          .quit()
-          .build()?;
-        menuBuilder = menuBuilder.item(&submenu);
+        menu_builder = menu_builder.item(&SubmenuBuilder::new(app, &ctx.package_info().name)
+        .about(Some(AboutMetadataBuilder::new().build()))
+        .separator()
+        .services()
+        .separator()
+        .hide()
+        .hide_others()
+        .show_all()
+        .separator()
+        .quit()
+        .build()?);
       }
       let open = MenuItemBuilder::with_id("open", "Open...")
       .accelerator("CmdOrControl+O")
