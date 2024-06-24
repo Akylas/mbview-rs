@@ -17,16 +17,15 @@ mod service;
 mod tiles;
 mod utils;
 use std::thread;
+use std::borrow::Borrow;
 
 use std::env;
 
 use std::path::PathBuf;
-use tauri::menu::{
-  MenuBuilder, MenuItemBuilder, SubmenuBuilder,
-};
+use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Manager;
 use tauri::WebviewWindow;
-use tauri::{WebviewWindowBuilder, WebviewUrl};
+use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 use crate::tiles::{get_path, reload, set_mbtiles};
 
@@ -141,29 +140,32 @@ fn main() {
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
-    .setup(|app| {
-      let  mut menu_builder = MenuBuilder::new(app);
+    .setup(move |app| {
+      let mut menu_builder = MenuBuilder::new(app);
       #[cfg(target_os = "macos")]
       {
-        menu_builder = menu_builder.item(&SubmenuBuilder::new(app, &ctx.package_info().name)
-        .about(Some(AboutMetadataBuilder::new().build()))
-        .separator()
-        .services()
-        .separator()
-        .hide()
-        .hide_others()
-        .show_all()
-        .separator()
-        .quit()
-        .build()?);
+        menu_builder = menu_builder.item(
+              &SubmenuBuilder::new(app, &app.package_info().name)
+                .about(Some(AboutMetadataBuilder::new().build()))
+                .separator()
+                .services()
+                .separator()
+                .hide()
+                .hide_others()
+                .show_all()
+                .separator()
+                .quit()
+                .build()?,
+            );
       }
-      let open = MenuItemBuilder::with_id("open", "Open...")
-      .accelerator("CmdOrControl+O")
-      .build(app)?;
       menu_builder = menu_builder
         .item(
           &SubmenuBuilder::new(app, "File")
-            .item(&open)
+            .item(
+              &MenuItemBuilder::with_id("open", "Open...")
+                .accelerator("CmdOrControl+O")
+                .build(app)?,
+            )
             .close_window()
             .build()?,
         )
