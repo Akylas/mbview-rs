@@ -75,16 +75,14 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
+      - name: Node.js enable corepack
+        run: corepack enable
+
       - name: Node.js setup
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 20.x
-          registry-url: https://registry.npmjs.org/
           cache: 'yarn'
-
-      - name: Install yarn
-        run: |
-          npm install --global yarn
 
       - name: Rust setup
         uses: actions-rs/toolchain@v1
@@ -97,6 +95,8 @@ jobs:
 
       - name: Install deps
         uses: bahmutov/npm-install@v1
+        with:
+          install-command: yarn install --immutable --silent
 
       - uses: tauri-apps/tauri-action@dev
         env:
