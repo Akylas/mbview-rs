@@ -33,7 +33,12 @@
           "**"
         ]
       },
-      "csp": "default-src blob: data: filesystem: ws: wss: asset: mbtiles: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; worker-src blob:; connect-src ipc: https://ipc.localhost"
+      "csp":{
+        "default-src":"blob: data: filesystem: ws: wss: asset: mbtiles: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'",
+        "img-src":"'self' blob: data:",
+        "worker-src":"blob:",
+        "connect-src":"ipc: https://ipc.localhost http://localhost:*"
+      }
     }
   },
   "bundle": {
