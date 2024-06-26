@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.7.2](https://github.com/Akylas/mbview-rs/compare/v1.7.1...v1.7.2) (2024-06-26)
+
+
+### Bug Fixes
+
+* broken production build ([a91f371](https://github.com/Akylas/mbview-rs/commit/a91f371b85b2971a287edec443fd579b55ca7d76))
+
 ## [1.7.1](https://github.com/Akylas/mbview-rs/compare/v1.7.0...v1.7.1) (2024-06-23)
 
 ## [1.7.0](https://github.com/Akylas/mbview-rs/compare/v1.6.0...v1.7.0) (2023-05-28)
