@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "MBTilesViewer"
-version = "1.7.1"
+version = "1.7.2"
 dependencies = [
  "bytes",
  "flate2",
