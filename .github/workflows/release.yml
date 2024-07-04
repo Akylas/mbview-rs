@@ -12,7 +12,9 @@ jobs:
   update-changelog:
     runs-on: ubuntu-latest
     outputs:
-      RELEASE_UPLOAD_ID: ${{ steps.create_release.outputs.id }}
+      CHANGELOG: ${{ steps.changelog_reader.outputs.changes }}
+      VERSION: ${{ steps.changelog_reader.outputs.version }}
+      STATUS: ${{ steps.changelog_reader.outputs.status }}
 
     steps:
       - uses: actions/checkout@v2
@@ -100,8 +102,8 @@ jobs:
           APPLE_PROVIDER_SHORT_NAME: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
         with:
           args: ${{ matrix.args }}
-          tagName: v${{ steps.changelog_reader.outputs.version }}
-          releaseName: v${{ steps.changelog_reader.outputs.version }}
-          releaseBody: ${{ steps.changelog_reader.outputs.changes }}
+          tagName: v${{ needs.update-changelog.outputs.VERSION }}
+          releaseName: v${{ needs.update-changelog.outputs.VERSION }}
+          releaseBody: ${{ needs.update-changelog.outputs.CHANGELOG }}
           releaseDraft: true
-          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
+          prerelease: ${{ needs.update-changelog.outputs.STATUS == 'prereleased' }}
