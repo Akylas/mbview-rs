@@ -889,15 +889,15 @@
       <SkipToContent />
     </svelte:fragment>
     <HeaderUtilities>
-      <HeaderGlobalAction aria-label={$_('open_osm')} icon={EarthFilled16} on:click={openInOSM} />
-      <HeaderGlobalAction aria-label={$_('reload')} icon={Renew16} on:click={reloadMBtiles} />
+      <HeaderGlobalAction iconDescription={$_('open_osm')} icon={EarthFilled16} on:click={openInOSM} />
+      <HeaderGlobalAction iconDescription={$_('reload')} icon={Renew16} on:click={reloadMBtiles} />
       <HeaderGlobalAction
-        aria-label={$_('opens_split')}
+      iconDescription={$_('opens_split')}
         icon={SplitScreen16}
         on:click={switchCompareView}
       />
       <HeaderGlobalAction
-        aria-label={$_('open_bottom_panel')}
+      iconDescription={$_('open_bottom_panel')}
         icon={OpenPanelBottom16}
         on:click={switchBottomPanel}
       />
