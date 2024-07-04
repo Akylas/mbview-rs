@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.7.3](https://github.com/Akylas/mbview-rs/compare/v1.7.2...v1.7.3) (2024-07-04)
+
+
+### Bug Fixes
+
+* buttons tooltip not showing ([f0f4313](https://github.com/Akylas/mbview-rs/commit/f0f4313f5763489eccd480d2b71b497138d5a97f))
+
 ## [1.7.2](https://github.com/Akylas/mbview-rs/compare/v1.7.1...v1.7.2) (2024-06-26)
 
 
