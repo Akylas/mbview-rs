@@ -835,6 +835,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@mapbox/point-geometry@npm:~1.1.0":
+  version: 1.1.0
+  resolution: "@mapbox/point-geometry@npm:1.1.0"
+  checksum: 10/1e649be5c6c83584fae9e043a398c61ad56f81e2ae5334deeb4048884ed1f2a5dc7e727e1757e3159ebf12e6cb1f5b059519078df8d16452bf7c7ab26323eb4a
+  languageName: node
+  linkType: hard
+
 "@mapbox/tilebelt@npm:1.0.2":
   version: 1.0.2
   resolution: "@mapbox/tilebelt@npm:1.0.2"
@@ -862,6 +869,17 @@ __metadata:
   dependencies:
     "@mapbox/point-geometry": "npm:~0.1.0"
   checksum: 10/ed31eeef0d593befde76b5b4edf0472709a2ba66dd6b32fad5671caa245fdac976e23ff385facf36e297f14a53c905bfde8911599e8aa690354d52b22bc4cfc5
+  languageName: node
+  linkType: hard
+
+"@mapbox/vector-tile@npm:^2.0.3":
+  version: 2.0.3
+  resolution: "@mapbox/vector-tile@npm:2.0.3"
+  dependencies:
+    "@mapbox/point-geometry": "npm:~1.1.0"
+    "@types/geojson": "npm:^7946.0.14"
+    pbf: "npm:^4.0.1"
+  checksum: 10/32316562ffd3a3c06d9740a794f068d1fe237caaf5637f56f3aed1dfe91a07514bfd132f6a45f57d3759993c6da99a55b37c8a5c56c199293f846e44eebee197
   languageName: node
   linkType: hard
 
@@ -1100,104 +1118,97 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/api@npm:2.0.0-beta.13":
-  version: 2.0.0-beta.13
-  resolution: "@tauri-apps/api@npm:2.0.0-beta.13"
-  checksum: 10/2365a450b14582e24f49936cd6ba0a1af9e014b83f62f62198890bc061483d0a748c609bfc3d3eac9ac9e1ec514e88b2137d15adb95e6c875b399df31ac48a7d
+"@tauri-apps/api@npm:2.0.0-beta.15":
+  version: 2.0.0-beta.15
+  resolution: "@tauri-apps/api@npm:2.0.0-beta.15"
+  checksum: 10/b20eced205e1ebb93638b4b8a23ede66f8bac4825162c5b68b12aff760bffb94a40475db017ae9d45a71e20fe4413b35e4e653b2c6d5f45ea6acdd0d53d1faf8
   languageName: node
   linkType: hard
 
-"@tauri-apps/api@npm:2.0.0-beta.14":
-  version: 2.0.0-beta.14
-  resolution: "@tauri-apps/api@npm:2.0.0-beta.14"
-  checksum: 10/b8ce115d12e23176e344c577eedd6ef7bcb8778cc533cd5d2ce5cec8777f656482c20115c3c1bd904785d3ef176d15ad3c84e6d8034a5d6697f85e8662780955
-  languageName: node
-  linkType: hard
-
-"@tauri-apps/cli-darwin-arm64@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-darwin-arm64@npm:2.0.0-beta.21"
+"@tauri-apps/cli-darwin-arm64@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-darwin-arm64@npm:2.0.0-beta.22"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli-darwin-x64@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-darwin-x64@npm:2.0.0-beta.21"
+"@tauri-apps/cli-darwin-x64@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-darwin-x64@npm:2.0.0-beta.22"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli-linux-arm-gnueabihf@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-linux-arm-gnueabihf@npm:2.0.0-beta.21"
+"@tauri-apps/cli-linux-arm-gnueabihf@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-linux-arm-gnueabihf@npm:2.0.0-beta.22"
   conditions: os=linux & cpu=arm
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli-linux-arm64-gnu@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-linux-arm64-gnu@npm:2.0.0-beta.21"
+"@tauri-apps/cli-linux-arm64-gnu@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-linux-arm64-gnu@npm:2.0.0-beta.22"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli-linux-arm64-musl@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-linux-arm64-musl@npm:2.0.0-beta.21"
+"@tauri-apps/cli-linux-arm64-musl@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-linux-arm64-musl@npm:2.0.0-beta.22"
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli-linux-x64-gnu@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-linux-x64-gnu@npm:2.0.0-beta.21"
+"@tauri-apps/cli-linux-x64-gnu@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-linux-x64-gnu@npm:2.0.0-beta.22"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli-linux-x64-musl@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-linux-x64-musl@npm:2.0.0-beta.21"
+"@tauri-apps/cli-linux-x64-musl@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-linux-x64-musl@npm:2.0.0-beta.22"
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli-win32-arm64-msvc@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-win32-arm64-msvc@npm:2.0.0-beta.21"
+"@tauri-apps/cli-win32-arm64-msvc@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-win32-arm64-msvc@npm:2.0.0-beta.22"
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli-win32-ia32-msvc@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-win32-ia32-msvc@npm:2.0.0-beta.21"
+"@tauri-apps/cli-win32-ia32-msvc@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-win32-ia32-msvc@npm:2.0.0-beta.22"
   conditions: os=win32 & cpu=ia32
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli-win32-x64-msvc@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli-win32-x64-msvc@npm:2.0.0-beta.21"
+"@tauri-apps/cli-win32-x64-msvc@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli-win32-x64-msvc@npm:2.0.0-beta.22"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
-"@tauri-apps/cli@npm:2.0.0-beta.21":
-  version: 2.0.0-beta.21
-  resolution: "@tauri-apps/cli@npm:2.0.0-beta.21"
+"@tauri-apps/cli@npm:2.0.0-beta.22":
+  version: 2.0.0-beta.22
+  resolution: "@tauri-apps/cli@npm:2.0.0-beta.22"
   dependencies:
-    "@tauri-apps/cli-darwin-arm64": "npm:2.0.0-beta.21"
-    "@tauri-apps/cli-darwin-x64": "npm:2.0.0-beta.21"
-    "@tauri-apps/cli-linux-arm-gnueabihf": "npm:2.0.0-beta.21"
-    "@tauri-apps/cli-linux-arm64-gnu": "npm:2.0.0-beta.21"
-    "@tauri-apps/cli-linux-arm64-musl": "npm:2.0.0-beta.21"
-    "@tauri-apps/cli-linux-x64-gnu": "npm:2.0.0-beta.21"
-    "@tauri-apps/cli-linux-x64-musl": "npm:2.0.0-beta.21"
-    "@tauri-apps/cli-win32-arm64-msvc": "npm:2.0.0-beta.21"
-    "@tauri-apps/cli-win32-ia32-msvc": "npm:2.0.0-beta.21"
-    "@tauri-apps/cli-win32-x64-msvc": "npm:2.0.0-beta.21"
+    "@tauri-apps/cli-darwin-arm64": "npm:2.0.0-beta.22"
+    "@tauri-apps/cli-darwin-x64": "npm:2.0.0-beta.22"
+    "@tauri-apps/cli-linux-arm-gnueabihf": "npm:2.0.0-beta.22"
+    "@tauri-apps/cli-linux-arm64-gnu": "npm:2.0.0-beta.22"
+    "@tauri-apps/cli-linux-arm64-musl": "npm:2.0.0-beta.22"
+    "@tauri-apps/cli-linux-x64-gnu": "npm:2.0.0-beta.22"
+    "@tauri-apps/cli-linux-x64-musl": "npm:2.0.0-beta.22"
+    "@tauri-apps/cli-win32-arm64-msvc": "npm:2.0.0-beta.22"
+    "@tauri-apps/cli-win32-ia32-msvc": "npm:2.0.0-beta.22"
+    "@tauri-apps/cli-win32-x64-msvc": "npm:2.0.0-beta.22"
   dependenciesMeta:
     "@tauri-apps/cli-darwin-arm64":
       optional: true
@@ -1221,43 +1232,43 @@ __metadata:
       optional: true
   bin:
     tauri: tauri.js
-  checksum: 10/34e1b618a3c97ad8039eeb73e09ceed7f54cdce59f98468046cbb22a877f08d94caad42909a030cf8f1293e5900a21572fd821f0369f9c2131ea94fe574e2511
+  checksum: 10/593a8ee4e3cc6d3146578e2ce345905b5859784b3e5018d885417dac6456a6803f5d89789fa3929a0ecfce3ce1b92ca96254bcc1a545a6668375300fb88221ed
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-clipboard-manager@npm:2.1.0-beta.4":
-  version: 2.1.0-beta.4
-  resolution: "@tauri-apps/plugin-clipboard-manager@npm:2.1.0-beta.4"
+"@tauri-apps/plugin-clipboard-manager@npm:2.1.0-beta.5":
+  version: 2.1.0-beta.5
+  resolution: "@tauri-apps/plugin-clipboard-manager@npm:2.1.0-beta.5"
   dependencies:
-    "@tauri-apps/api": "npm:2.0.0-beta.14"
-  checksum: 10/8d3e8a319eafc0d0e447ee479cfee7fe032f9e9628e829071728fd8ea733de1a31b3a98be588c5b8702630935fcf95c15f30200c8a94e9c4a5e0fd6cbf316579
+    "@tauri-apps/api": "npm:2.0.0-beta.15"
+  checksum: 10/133a03d524f345ea753fda40a94edf529bbf138f275ce1ebe749df05c27042309a01e0a700a138a8720926bdfce076331e2f16aa17887f84ae86027e4809a88b
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-dialog@npm:2.0.0-beta.5":
-  version: 2.0.0-beta.5
-  resolution: "@tauri-apps/plugin-dialog@npm:2.0.0-beta.5"
-  dependencies:
-    "@tauri-apps/api": "npm:2.0.0-beta.13"
-  checksum: 10/15b200a0a8bd22fa18e59778090eadaa73065f7295530b01297b178c801974b6fe878bfb58e08f27bd0fc3b9b7ad814047c53853497dbaee518c02ce29018988
-  languageName: node
-  linkType: hard
-
-"@tauri-apps/plugin-fs@npm:2.0.0-beta.6":
-  version: 2.0.0-beta.6
-  resolution: "@tauri-apps/plugin-fs@npm:2.0.0-beta.6"
-  dependencies:
-    "@tauri-apps/api": "npm:2.0.0-beta.14"
-  checksum: 10/dcdce5b34ac0bbba68433775608804f4a00f92c8218cebad92aa06e7c2496f15f3f0899a21b9651ee90c3dba87587177acc4cb6344010d92853e8c467db6fbcb
-  languageName: node
-  linkType: hard
-
-"@tauri-apps/plugin-shell@npm:2.0.0-beta.7":
+"@tauri-apps/plugin-dialog@npm:2.0.0-beta.7":
   version: 2.0.0-beta.7
-  resolution: "@tauri-apps/plugin-shell@npm:2.0.0-beta.7"
+  resolution: "@tauri-apps/plugin-dialog@npm:2.0.0-beta.7"
   dependencies:
-    "@tauri-apps/api": "npm:2.0.0-beta.14"
-  checksum: 10/3be043b0d3523f183881727f9806d7ec8272e51660b3691d98aff46bd26e3c933bd745f0ff8b2c1a05525b94112c513c2227f0a343f07729633fc822515b743c
+    "@tauri-apps/api": "npm:2.0.0-beta.15"
+  checksum: 10/1d9dc2c1c6aeb8a1ce675de4598e5588ba934fb75f9f0e767301740d5f521c91402f4a062beed433864da5e75ef6a3921bd1b14fd737e267e3a3e3fa3ed16e63
+  languageName: node
+  linkType: hard
+
+"@tauri-apps/plugin-fs@npm:2.0.0-beta.7":
+  version: 2.0.0-beta.7
+  resolution: "@tauri-apps/plugin-fs@npm:2.0.0-beta.7"
+  dependencies:
+    "@tauri-apps/api": "npm:2.0.0-beta.15"
+  checksum: 10/4016077155bb6580c74bac6349f863b1e82f33118853d96bf3b1f0dbf9b5ac3d6225343569919aadcd7a4e10b2b2b0e8e96c9176687fa9f0974bb933fbf4ef49
+  languageName: node
+  linkType: hard
+
+"@tauri-apps/plugin-shell@npm:2.0.0-beta.8":
+  version: 2.0.0-beta.8
+  resolution: "@tauri-apps/plugin-shell@npm:2.0.0-beta.8"
+  dependencies:
+    "@tauri-apps/api": "npm:2.0.0-beta.15"
+  checksum: 10/ae7f7a48deea091d48754650af184e4e7de9800f9250a588251a3407c5130669815305114fd32d79d072ea0a11b0d271070634468a0a6a87be7e8e157dc86769
   languageName: node
   linkType: hard
 
@@ -1448,15 +1459,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/eslint-plugin@npm:^7.13.1":
-  version: 7.13.1
-  resolution: "@typescript-eslint/eslint-plugin@npm:7.13.1"
+"@typescript-eslint/eslint-plugin@npm:^7.17.0":
+  version: 7.17.0
+  resolution: "@typescript-eslint/eslint-plugin@npm:7.17.0"
   dependencies:
     "@eslint-community/regexpp": "npm:^4.10.0"
-    "@typescript-eslint/scope-manager": "npm:7.13.1"
-    "@typescript-eslint/type-utils": "npm:7.13.1"
-    "@typescript-eslint/utils": "npm:7.13.1"
-    "@typescript-eslint/visitor-keys": "npm:7.13.1"
+    "@typescript-eslint/scope-manager": "npm:7.17.0"
+    "@typescript-eslint/type-utils": "npm:7.17.0"
+    "@typescript-eslint/utils": "npm:7.17.0"
+    "@typescript-eslint/visitor-keys": "npm:7.17.0"
     graphemer: "npm:^1.4.0"
     ignore: "npm:^5.3.1"
     natural-compare: "npm:^1.4.0"
@@ -1467,54 +1478,44 @@ __metadata:
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/37fff8c302f93f5f88fc8d6e6c9151a7d1873a3c8af6e15547d737bdc066a6b8887fa54bcd8eb4e4ca6a11494051801c8e957eea8d8b4d4b078a477df6f10692
+  checksum: 10/f3caba81b7ea4d1b4b097b3de1c51054424ad3d5e37f7af7df64f1c29b6448c535b61e0956f76bfa450b38917923f919a9bab081224c2b5577596caffa6e288a
   languageName: node
   linkType: hard
 
-"@typescript-eslint/parser@npm:^7.15.0":
-  version: 7.15.0
-  resolution: "@typescript-eslint/parser@npm:7.15.0"
+"@typescript-eslint/parser@npm:^7.17.0":
+  version: 7.17.0
+  resolution: "@typescript-eslint/parser@npm:7.17.0"
   dependencies:
-    "@typescript-eslint/scope-manager": "npm:7.15.0"
-    "@typescript-eslint/types": "npm:7.15.0"
-    "@typescript-eslint/typescript-estree": "npm:7.15.0"
-    "@typescript-eslint/visitor-keys": "npm:7.15.0"
+    "@typescript-eslint/scope-manager": "npm:7.17.0"
+    "@typescript-eslint/types": "npm:7.17.0"
+    "@typescript-eslint/typescript-estree": "npm:7.17.0"
+    "@typescript-eslint/visitor-keys": "npm:7.17.0"
     debug: "npm:^4.3.4"
   peerDependencies:
     eslint: ^8.56.0
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/0b5e7a14fa5d0680efb17e750a095729a7fb7c785d7a0fea2f9e6cbfef9e65caab2b751654b348b9ab813d222c1c3f8189ebf48561b81224d1821cee5c99d658
+  checksum: 10/91971e5d95fec798a456ec72d9d67c28eee72d0d1c52e682dbff2eef134e149799f69324ea8d42bd2cfa290eec763073b26fb343ce0632e4fa64c3b8a854d124
   languageName: node
   linkType: hard
 
-"@typescript-eslint/scope-manager@npm:7.13.1":
-  version: 7.13.1
-  resolution: "@typescript-eslint/scope-manager@npm:7.13.1"
+"@typescript-eslint/scope-manager@npm:7.17.0":
+  version: 7.17.0
+  resolution: "@typescript-eslint/scope-manager@npm:7.17.0"
   dependencies:
-    "@typescript-eslint/types": "npm:7.13.1"
-    "@typescript-eslint/visitor-keys": "npm:7.13.1"
-  checksum: 10/fea9ab8f72ace1dd55d835037efe038c70021275581855820cdb7fc4b01e8afb51723856537adff1fdb0ea3899c1f8b593fd75c34b5087ca2ef2f7c72e610050
+    "@typescript-eslint/types": "npm:7.17.0"
+    "@typescript-eslint/visitor-keys": "npm:7.17.0"
+  checksum: 10/aec72538a92d8a82ca39f60c34b0d0e00f2f8fb74f584aee90b6d1ef28f30a415b507f28aa27a536898992ad4b9b5af58671c743cd50439b21e67bee03a59c88
   languageName: node
   linkType: hard
 
-"@typescript-eslint/scope-manager@npm:7.15.0":
-  version: 7.15.0
-  resolution: "@typescript-eslint/scope-manager@npm:7.15.0"
+"@typescript-eslint/type-utils@npm:7.17.0":
+  version: 7.17.0
+  resolution: "@typescript-eslint/type-utils@npm:7.17.0"
   dependencies:
-    "@typescript-eslint/types": "npm:7.15.0"
-    "@typescript-eslint/visitor-keys": "npm:7.15.0"
-  checksum: 10/45bfdbae2d080691a34f5b37679b4a4067981baa3b82922268abdd21f6917a8dd1c4ccb12133f6c9cce81cfd640040913b223e8125235b92f42fdb57db358a3e
-  languageName: node
-  linkType: hard
-
-"@typescript-eslint/type-utils@npm:7.13.1":
-  version: 7.13.1
-  resolution: "@typescript-eslint/type-utils@npm:7.13.1"
-  dependencies:
-    "@typescript-eslint/typescript-estree": "npm:7.13.1"
-    "@typescript-eslint/utils": "npm:7.13.1"
+    "@typescript-eslint/typescript-estree": "npm:7.17.0"
+    "@typescript-eslint/utils": "npm:7.17.0"
     debug: "npm:^4.3.4"
     ts-api-utils: "npm:^1.3.0"
   peerDependencies:
@@ -1522,30 +1523,23 @@ __metadata:
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/cc03cd44e125933511ea657e386c5cf427eb6a386fdb110cba0858598195fb4f8c71173b00b187f388a6713e16b919a2037a86e0be10f4c40c18bcbdbe06d5de
+  checksum: 10/1405c626cd59a1fb29b897d22dce0b2f5b793e5d1cba228a119e58e7392c385c9131c332e744888b7d6ad41eee0abbd8099651664cafaed24229da2cd768e032
   languageName: node
   linkType: hard
 
-"@typescript-eslint/types@npm:7.13.1":
-  version: 7.13.1
-  resolution: "@typescript-eslint/types@npm:7.13.1"
-  checksum: 10/006a5518608184c1d017b27fb4f66ce28bc75f89e2380ac42969ebdf0dc726af1cfcdf4ba36ce2858e9f6907d6f4295d3453859d7e9a35bc7855d4ebc900955d
+"@typescript-eslint/types@npm:7.17.0":
+  version: 7.17.0
+  resolution: "@typescript-eslint/types@npm:7.17.0"
+  checksum: 10/92e571f794f51a1f110714a9de661f9a76781c8c3e53d8fe025a88be947ae30d1c18964083467db31001ce7910f1a1459b8f6b039c270bdb6d1de47eba5dfa7f
   languageName: node
   linkType: hard
 
-"@typescript-eslint/types@npm:7.15.0":
-  version: 7.15.0
-  resolution: "@typescript-eslint/types@npm:7.15.0"
-  checksum: 10/b36c98344469f4bc54a5199733ea4f6d4d0f2da1070605e60d4031e2da2946b84b91a90108516c8e6e83a21030ba4e935053a0906041c920156de40683297d0b
-  languageName: node
-  linkType: hard
-
-"@typescript-eslint/typescript-estree@npm:7.13.1":
-  version: 7.13.1
-  resolution: "@typescript-eslint/typescript-estree@npm:7.13.1"
+"@typescript-eslint/typescript-estree@npm:7.17.0":
+  version: 7.17.0
+  resolution: "@typescript-eslint/typescript-estree@npm:7.17.0"
   dependencies:
-    "@typescript-eslint/types": "npm:7.13.1"
-    "@typescript-eslint/visitor-keys": "npm:7.13.1"
+    "@typescript-eslint/types": "npm:7.17.0"
+    "@typescript-eslint/visitor-keys": "npm:7.17.0"
     debug: "npm:^4.3.4"
     globby: "npm:^11.1.0"
     is-glob: "npm:^4.0.3"
@@ -1555,60 +1549,31 @@ __metadata:
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/5c68b5faa962e5f984067aa91770486af817858d2fa35b54a44fa4d5c0c612ba23b52b191d8051d9e4439e5425251e32861c81239e9400a29de057f8360537fb
+  checksum: 10/419c4ad3b470ea4d654c414bbc66269ba7a6504e10bf2a2a87f9214aad4358b670f60e89ae7e4b2a24fa7c0c4542ebdd3711b8964917c026a5eef27d861e23fb
   languageName: node
   linkType: hard
 
-"@typescript-eslint/typescript-estree@npm:7.15.0":
-  version: 7.15.0
-  resolution: "@typescript-eslint/typescript-estree@npm:7.15.0"
-  dependencies:
-    "@typescript-eslint/types": "npm:7.15.0"
-    "@typescript-eslint/visitor-keys": "npm:7.15.0"
-    debug: "npm:^4.3.4"
-    globby: "npm:^11.1.0"
-    is-glob: "npm:^4.0.3"
-    minimatch: "npm:^9.0.4"
-    semver: "npm:^7.6.0"
-    ts-api-utils: "npm:^1.3.0"
-  peerDependenciesMeta:
-    typescript:
-      optional: true
-  checksum: 10/c5fb15108fbbc1bc976e827218ff7bfbc78930c5906292325ee42ba03514623e7b861497b3e3087f71ede9a757b16441286b4d234450450b0dd70ff753782736
-  languageName: node
-  linkType: hard
-
-"@typescript-eslint/utils@npm:7.13.1":
-  version: 7.13.1
-  resolution: "@typescript-eslint/utils@npm:7.13.1"
+"@typescript-eslint/utils@npm:7.17.0":
+  version: 7.17.0
+  resolution: "@typescript-eslint/utils@npm:7.17.0"
   dependencies:
     "@eslint-community/eslint-utils": "npm:^4.4.0"
-    "@typescript-eslint/scope-manager": "npm:7.13.1"
-    "@typescript-eslint/types": "npm:7.13.1"
-    "@typescript-eslint/typescript-estree": "npm:7.13.1"
+    "@typescript-eslint/scope-manager": "npm:7.17.0"
+    "@typescript-eslint/types": "npm:7.17.0"
+    "@typescript-eslint/typescript-estree": "npm:7.17.0"
   peerDependencies:
     eslint: ^8.56.0
-  checksum: 10/e1bc916dcb567c6b35819f635a84561e015f40b28d650b987f74c79b013ec43fb4f5b61199d4039fcdf9480281f945f622650cba2e68739600822da05808a706
+  checksum: 10/44d6bfcda4b03a7bec82939dd975579f40705cf4128e40f747bf96b81e8fae0c384434999334a9ac42990e2864266c8067ca0e4b27d736ce2f6b8667115f7a1d
   languageName: node
   linkType: hard
 
-"@typescript-eslint/visitor-keys@npm:7.13.1":
-  version: 7.13.1
-  resolution: "@typescript-eslint/visitor-keys@npm:7.13.1"
+"@typescript-eslint/visitor-keys@npm:7.17.0":
+  version: 7.17.0
+  resolution: "@typescript-eslint/visitor-keys@npm:7.17.0"
   dependencies:
-    "@typescript-eslint/types": "npm:7.13.1"
+    "@typescript-eslint/types": "npm:7.17.0"
     eslint-visitor-keys: "npm:^3.4.3"
-  checksum: 10/811e9642851359b5197d45a9878143c4c608aaef887a20c26f57f8b012ce9e316d232b82a311bdd52a2af0c8b8da5d4bd9401ce565fc7bdb43cd44556e76d225
-  languageName: node
-  linkType: hard
-
-"@typescript-eslint/visitor-keys@npm:7.15.0":
-  version: 7.15.0
-  resolution: "@typescript-eslint/visitor-keys@npm:7.15.0"
-  dependencies:
-    "@typescript-eslint/types": "npm:7.15.0"
-    eslint-visitor-keys: "npm:^3.4.3"
-  checksum: 10/0e17d7f5de767da7f98170c2efc905cdb0ceeaf04a667e12ca1a92eae64479a07f4f8e2a9b5023b055b01250916c3bcac86908cd06552610baff734fafae4464
+  checksum: 10/a8bef372e212baab67ec4e074a8b4983348fc554874d40d1fc22c10ce2693609cdef4a215391e8b428a67b3e2dcbda12d821b4ed668394b0b001ba03a08c5145
   languageName: node
   linkType: hard
 
@@ -2026,15 +1991,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"carbon-components@npm:10.58.12":
-  version: 10.58.12
-  resolution: "carbon-components@npm:10.58.12"
+"carbon-components@npm:10.58.15":
+  version: 10.58.15
+  resolution: "carbon-components@npm:10.58.15"
   dependencies:
     "@carbon/telemetry": "npm:0.1.0"
     flatpickr: "npm:4.6.1"
     lodash.debounce: "npm:^4.0.8"
     warning: "npm:^3.0.0"
-  checksum: 10/5ebf03f54aefcf906a568d7fa7303517a89b8ff0fd6211850d6e5bb08ad4837c1eff18ccafb2773fdb4a1ecbe9011ce52ee850f56baf6615546be27472076e57
+  checksum: 10/f76ba22855a87a6015ab9e810199f55fc1d2e55bc3ab829ed1dff1ad545a8a53b503642e5eafcd27796308ab36365bbd7b5d6a9c0cbcf3f366c73fbffd28b66a
   languageName: node
   linkType: hard
 
@@ -2200,45 +2165,45 @@ __metadata:
     "@commitlint/config-conventional": "npm:^19.2.2"
     "@geoffcox/svelte-splitter": "npm:^1.0.1"
     "@mapbox/tilebelt": "npm:1.0.2"
-    "@mapbox/vector-tile": "npm:^1.3.1"
+    "@mapbox/vector-tile": "npm:^2.0.3"
     "@maplibre/maplibre-gl-compare": "npm:^0.5.0"
     "@sveltejs/vite-plugin-svelte": "npm:3.1.1"
-    "@tauri-apps/api": "npm:2.0.0-beta.14"
-    "@tauri-apps/cli": "npm:2.0.0-beta.21"
-    "@tauri-apps/plugin-clipboard-manager": "npm:2.1.0-beta.4"
-    "@tauri-apps/plugin-dialog": "npm:2.0.0-beta.5"
-    "@tauri-apps/plugin-fs": "npm:2.0.0-beta.6"
-    "@tauri-apps/plugin-shell": "npm:2.0.0-beta.7"
+    "@tauri-apps/api": "npm:2.0.0-beta.15"
+    "@tauri-apps/cli": "npm:2.0.0-beta.22"
+    "@tauri-apps/plugin-clipboard-manager": "npm:2.1.0-beta.5"
+    "@tauri-apps/plugin-dialog": "npm:2.0.0-beta.7"
+    "@tauri-apps/plugin-fs": "npm:2.0.0-beta.7"
+    "@tauri-apps/plugin-shell": "npm:2.0.0-beta.8"
     "@tauri-apps/toml": "npm:^2.2.4"
     "@types/geojson": "npm:^7946.0.14"
     "@types/mapbox__tilebelt": "npm:^1.0.4"
-    "@typescript-eslint/eslint-plugin": "npm:^7.13.1"
-    "@typescript-eslint/parser": "npm:^7.15.0"
-    carbon-components: "npm:10.58.12"
+    "@typescript-eslint/eslint-plugin": "npm:^7.17.0"
+    "@typescript-eslint/parser": "npm:^7.17.0"
+    carbon-components: "npm:10.58.15"
     carbon-components-svelte: "npm:0.85.0"
     carbon-icons-svelte: "npm:^12.10.0"
     cssnano: "npm:^7.0.3"
     eslint: "npm:^8.57.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-prettier: "npm:^5.1.3"
+    eslint-plugin-prettier: "npm:^5.2.1"
     eslint-plugin-svelte3: "npm:^4.0.0"
     events: "npm:^3.3.0"
-    highlight.js: "npm:^11.9.0"
+    highlight.js: "npm:^11.10.0"
     mapbox-gl-controls: "npm:^2.3.5"
     maplibre-gl: "npm:^4.5.0"
-    pbf: "npm:^3.3.0"
-    prettier: "npm:^3.3.2"
-    prettier-plugin-svelte: "npm:^3.2.5"
+    pbf: "npm:^4.0.1"
+    prettier: "npm:^3.3.3"
+    prettier-plugin-svelte: "npm:^3.2.6"
     randomcolor: "npm:^0.6.2"
     sass: "npm:^1.77.6"
     standard-version: "npm:^9.5.0"
     svelte: "npm:^4.2.18"
     svelte-check: "npm:^3.8.4"
-    svelte-highlight: "npm:^7.6.1"
+    svelte-highlight: "npm:^7.7.0"
     svelte-i18n: "npm:^4.0.0"
     svelte-preprocess: "npm:^5.1.4"
-    typescript: "npm:^5.5.2"
-    vite: "npm:^5.3.3"
+    typescript: "npm:^5.5.4"
+    vite: "npm:^5.3.5"
   languageName: unknown
   linkType: soft
 
@@ -3204,12 +3169,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-plugin-prettier@npm:^5.1.3":
-  version: 5.1.3
-  resolution: "eslint-plugin-prettier@npm:5.1.3"
+"eslint-plugin-prettier@npm:^5.2.1":
+  version: 5.2.1
+  resolution: "eslint-plugin-prettier@npm:5.2.1"
   dependencies:
     prettier-linter-helpers: "npm:^1.0.0"
-    synckit: "npm:^0.8.6"
+    synckit: "npm:^0.9.1"
   peerDependencies:
     "@types/eslint": ">=8.0.0"
     eslint: ">=8.0.0"
@@ -3220,7 +3185,7 @@ __metadata:
       optional: true
     eslint-config-prettier:
       optional: true
-  checksum: 10/4f26a30444adc61ed692cdb5a9f7e8d9f5794f0917151051e66755ce032a08c3cc72c8b5d56101412e90f6d77035bd8194ea8731e9c16aacdd5ae345a8dae188
+  checksum: 10/10ddf68215237e327af09a47adab4c63f3885fda4fb28c4c42d1fc5f47d8a0cc45df6484799360ff1417a0aa3c77c3aaac49d7e9dfd145557b17e2d7ecc2a27c
   languageName: node
   linkType: hard
 
@@ -3954,10 +3919,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"highlight.js@npm:11.9.0, highlight.js@npm:^11.9.0":
-  version: 11.9.0
-  resolution: "highlight.js@npm:11.9.0"
-  checksum: 10/44b3e42bc096a2e5207e514826a10ff7671de315a7216ebaeba76593d4f16dfe3f7078390cb5c2b08eae657694fef4fb65d775376db48480c829c83fbc4f157a
+"highlight.js@npm:11.10.0, highlight.js@npm:^11.10.0":
+  version: 11.10.0
+  resolution: "highlight.js@npm:11.10.0"
+  checksum: 10/fc8747bcd4a491fc6a47ff80536881dcc9ea9b36cdc2a22a7be5670b89d76ca6c26df9d749017a23bbb2eb708331097a5ecbcee6330fb9064512d80cc3369d99
   languageName: node
   linkType: hard
 
@@ -5406,15 +5371,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pbf@npm:^3.3.0":
-  version: 3.3.0
-  resolution: "pbf@npm:3.3.0"
+"pbf@npm:^4.0.1":
+  version: 4.0.1
+  resolution: "pbf@npm:4.0.1"
   dependencies:
-    ieee754: "npm:^1.1.12"
     resolve-protobuf-schema: "npm:^2.1.0"
   bin:
     pbf: bin/pbf
-  checksum: 10/46488694528740097c33443efa240ca7f99538a2b96e9fbd2284d9be45ec91dab6954b9c03df237656ac2757d7f046153a031ad24519b4cfcaa2e7b18ddeb5dd
+  checksum: 10/9e2821fec1511cdaacf205c1279a33991119a2b8469208071d22e6204162dc8a4d216f647ce92759601e3d685fa913d4739278a86aa9ac126d04a1a3ac66bf12
   languageName: node
   linkType: hard
 
@@ -5832,22 +5796,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier-plugin-svelte@npm:^3.2.5":
-  version: 3.2.5
-  resolution: "prettier-plugin-svelte@npm:3.2.5"
+"prettier-plugin-svelte@npm:^3.2.6":
+  version: 3.2.6
+  resolution: "prettier-plugin-svelte@npm:3.2.6"
   peerDependencies:
     prettier: ^3.0.0
     svelte: ^3.2.0 || ^4.0.0-next.0 || ^5.0.0-next.0
-  checksum: 10/5d2e506294800cded1f6b5af7941a7afbafd7caf68625b89863729746ab58746f5466368ebbfd104069fc722fedb98eb9a397d8fc2dbe9ba2c1de3909272f0c3
+  checksum: 10/2a9365be867d4c59fe18454f980ed4eff790a57c1dce3ef160a6f38a80fd1552632bd7d7fbbdc3b09c28c780849d0fda3092dc0ee6f5d5570c8c0ee4a4462592
   languageName: node
   linkType: hard
 
-"prettier@npm:^3.3.2":
-  version: 3.3.2
-  resolution: "prettier@npm:3.3.2"
+"prettier@npm:^3.3.3":
+  version: 3.3.3
+  resolution: "prettier@npm:3.3.3"
   bin:
     prettier: bin/prettier.cjs
-  checksum: 10/83214e154afa5aa9b664c2506640212323eb1376b13379b2413dc351b7de0687629dca3f00ff2ec895ebd7e3a2adb7d7e231b6c77606e2358137f2150807405b
+  checksum: 10/5beac1f30b5b40162532b8e2f7c3a4eb650910a2695e9c8512a62ffdc09dae93190c29db9107fa7f26d1b6c71aad3628ecb9b5de1ecb0911191099be109434d7
   languageName: node
   linkType: hard
 
@@ -6671,12 +6635,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"svelte-highlight@npm:^7.6.1":
-  version: 7.6.1
-  resolution: "svelte-highlight@npm:7.6.1"
+"svelte-highlight@npm:^7.7.0":
+  version: 7.7.0
+  resolution: "svelte-highlight@npm:7.7.0"
   dependencies:
-    highlight.js: "npm:11.9.0"
-  checksum: 10/b010f0b0fc11c2db5034163bb23707d718f604d37c108c594db7d0e389167988b4a47e8502d69d723567b4cca73dcea8e94f8d3268c8ca77c8dbe37cbbd5ed2a
+    highlight.js: "npm:11.10.0"
+  checksum: 10/58196fd1a0a777fe7c71143026cec86c40beb98030d7006e96bd38b6857dc54c02ab89ec4c88d824574863ddc9cccf3a0627afae49015a7310bdd173c79e58b9
   languageName: node
   linkType: hard
 
@@ -6839,13 +6803,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"synckit@npm:^0.8.6":
-  version: 0.8.8
-  resolution: "synckit@npm:0.8.8"
+"synckit@npm:^0.9.1":
+  version: 0.9.1
+  resolution: "synckit@npm:0.9.1"
   dependencies:
     "@pkgr/core": "npm:^0.1.0"
     tslib: "npm:^2.6.2"
-  checksum: 10/2864a5c3e689ad5b991bebbd8a583c5682c4fa08a4f39986b510b6b5d160c08fc3672444069f8f96ed6a9d12772879c674c1f61e728573eadfa90af40a765b74
+  checksum: 10/bff3903976baf8b699b5483228116d70223781a93b17c70e685c277ee960cdfd1a09cb5a741e6a9ec35e2428f14f4664baec41ccc99a598f267608b2a54f529b
   languageName: node
   linkType: hard
 
@@ -7051,13 +7015,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5.5.2":
-  version: 5.5.2
-  resolution: "typescript@npm:5.5.2"
+"typescript@npm:^5.5.4":
+  version: 5.5.4
+  resolution: "typescript@npm:5.5.4"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/9118b20f248e76b0dbff8737fef65dfa89d02668d4e633d2c5ceac99033a0ca5e8a1c1a53bc94da68e8f67677a88f318663dde859c9e9a09c1e116415daec2ba
+  checksum: 10/1689ccafef894825481fc3d856b4834ba3cc185a9c2878f3c76a9a1ef81af04194849840f3c69e7961e2312771471bb3b460ca92561e1d87599b26c37d0ffb6f
   languageName: node
   linkType: hard
 
@@ -7071,13 +7035,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A^5.5.2#optional!builtin<compat/typescript>":
-  version: 5.5.2
-  resolution: "typescript@patch:typescript@npm%3A5.5.2#optional!builtin<compat/typescript>::version=5.5.2&hash=379a07"
+"typescript@patch:typescript@npm%3A^5.5.4#optional!builtin<compat/typescript>":
+  version: 5.5.4
+  resolution: "typescript@patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/ac3145f65cf9e72ab29f2196e05d5816b355dc1a9195b9f010d285182a12457cfacd068be2dd22c877f88ebc966ac6e0e83f51c8586412b16499a27e3670ff4b
+  checksum: 10/746fdd0865c5ce4f15e494c57ede03a9e12ede59cfdb40da3a281807853fe63b00ef1c912d7222143499aa82f18b8b472baa1830df8804746d09b55f6cf5b1cc
   languageName: node
   linkType: hard
 
@@ -7204,9 +7168,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vite@npm:^5.3.3":
-  version: 5.3.3
-  resolution: "vite@npm:5.3.3"
+"vite@npm:^5.3.5":
+  version: 5.3.5
+  resolution: "vite@npm:5.3.5"
   dependencies:
     esbuild: "npm:^0.21.3"
     fsevents: "npm:~2.3.3"
@@ -7240,7 +7204,7 @@ __metadata:
       optional: true
   bin:
     vite: bin/vite.js
-  checksum: 10/e7a094cefedad9e204b715588502118e07d1b9c00c617f55b810169181907f55144f0a82f650995d6a74f12e3695fca65afc348b475b91a81dcbd0274d30a088
+  checksum: 10/5672dde4a969349d9cf90a9e43029c8489dfff60fb04d6a10717d6224553cf12283a8cace633fa80b006df6037f72d08a459a38bf8ea66cb19075d60fe159482
   languageName: node
   linkType: hard
 
