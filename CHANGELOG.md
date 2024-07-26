@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.8.0](https://github.com/Akylas/mbview-rs/compare/v1.7.3...v1.8.0) (2024-07-26)
+
+
+### Features
+
+* last zoom/location is now saved/restore upon app restart ([68fd022](https://github.com/Akylas/mbview-rs/commit/68fd0221d2aed3175e5a7399456ef8fbd80f8332))
+
+
+### Bug Fixes
+
+* fixed copy GeoJSON tile ([004b2a1](https://github.com/Akylas/mbview-rs/commit/004b2a16d58fa70f8988a003cc7f0f98314ba853))
+
 ## [1.7.3](https://github.com/Akylas/mbview-rs/compare/v1.7.2...v1.7.3) (2024-07-04)
 
 
