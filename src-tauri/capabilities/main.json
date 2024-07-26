@@ -22,6 +22,7 @@
       "fs:allow-localdata-read-recursive",
       "fs:allow-data-read-recursive",
       "fs:allow-app-read-recursive",
-      "fs:allow-resource-read-recursive"
+      "fs:allow-resource-read-recursive",
+      "clipboard-manager:allow-write-text"
     ]
   }
