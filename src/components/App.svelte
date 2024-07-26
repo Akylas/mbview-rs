@@ -32,7 +32,7 @@
   import { CompassControl, ZoomControl } from 'mapbox-gl-controls';
   import { Map } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
-  import { MapMouseEvent } from 'maplibre-gl/src/ui/events';
+  import { MapMouseEvent } from 'maplibre-gl';
   import Pbf from 'pbf';
   import { randomColor } from 'randomcolor';
   import { onDestroy, onMount } from 'svelte';
@@ -75,8 +75,8 @@
   let mainMapDiv;
   let secondaryMapDiv;
 
-  let savedZoom;
-  let savedPosition;
+  let savedZoom = localStorage.getItem('lastZoom') ? parseFloat(localStorage.getItem('lastZoom')) : undefined;
+  let savedPosition = localStorage.getItem('lastPosition') ? JSON.parse(localStorage.getItem('lastPosition')) : undefined;
   let savedSplitPosition;
 
   // $: console.log('mainFeatures', mainFeatures);
@@ -171,9 +171,9 @@
   }
 
   onDestroy(() => {
-    unlistener();
-    unlistenerReload();
-    unlistenMenu();
+    unlistener?.();
+    unlistenerReload?.();
+    unlistenMenu?.();
   });
 
   function brightColor(layerId, alpha?) {
@@ -468,7 +468,9 @@
     let sourceData = await (await fetch(json_url)).json();
     let center;
     let zoom;
+
     if (key === 'main') {
+
       zoom = savedZoom
         ? savedZoom
         : sourceData.minzoom + (sourceData.maxzoom - sourceData.minzoom) / 2;
@@ -635,6 +637,14 @@
       if (key === 'main') {
         if (!mainMap) {
           mainMap = await createMap({ key, path, json_url, source_id, source_type, layer_type });
+          mainMap.on('idle', e=> {
+            console.log('idle', e)
+          })
+          mainMap.on('moveend', e=> {
+            localStorage.setItem('lastZoom', mainMap.getZoom() + '')
+            localStorage.setItem('lastPosition', JSON.stringify(mainMap.getCenter()))
+            console.log('moveend', e)
+          })
         } else {
           let sourceData = await (await fetch(json_url)).json();
 
@@ -842,10 +852,9 @@
   async function copyTileAsGeoJSON(key, event) {
     try {
       const map = key === 'secondary' ? secondaryMap : mainMap;
-      const mapEvent = new MapMouseEvent(event.type, map as any, event.detail);
+      const mapEvent = new MapMouseEvent(event.type, map, event.detail);
       const lngLat = mapEvent.lngLat;
       const tile = pointToTile(lngLat.lng, lngLat.lat, Math.floor(map.getZoom()));
-      console.log('copyTileAsGeoJSON', lngLat, tile);
       const sources = key === 'secondary' ? secondarySources : mainSources;
       let result = {};
       for (let index = 0; index < sources.length; index++) {
@@ -856,12 +865,10 @@
           )
         ).arrayBuffer();
 
-        console.log('buffer', buffer);
         let vt = new VectorTile(new Pbf(buffer));
         let dumpedTile = dumpTile(vt);
         result[s.path] = dumpedTile;
       }
-      console.log('result', result);
       if (Object.keys(result).length === 1) {
         writeText(JSON.stringify(result[Object.keys(result)[0]]));
       } else {
