@@ -75,7 +75,7 @@ If you want to run this project in your local system, please follow this guide:
 
 2. Clone the project to your local system using this command
 
-3. Follow [this guide](https://tauri.studio/en/docs/getting-started/intro/#setting-up-your-environment) to set up Tauri environment
+3. Follow [this guide](https://v2.tauri.app/start/) to set up Tauri environment
 
 ```sh
 $ git clone https://github.com/<your_github_username>/mbview-rs.git
