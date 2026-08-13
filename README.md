@@ -28,7 +28,7 @@ View More Screenshots
 MBTiles Viewer is a tool to view and inspect `mbtiles` files without the need of running a docker or a web server
 
 -   100% offline
--   load vector mbtiles
+-   load vector mbtiles, both MVT (`pbf`) and MLT ([MapLibre Tile](https://github.com/maplibre/maplibre-tile-spec)) encoded
     * See all layers
     * hide/show layers
     * filter lines/polygons/points

@@ -5,6 +5,7 @@
   import { VectorTile } from '@mapbox/vector-tile';
   import Compare from '@maplibre/maplibre-gl-compare';
   import '@maplibre/maplibre-gl-compare/dist/maplibre-gl-compare.css';
+  import { decodeTile as decodeMLTTile } from '@maplibre/mlt';
   import { invoke } from '@tauri-apps/api/core';
   import { listen, UnlistenFn } from '@tauri-apps/api/event';
   import { dirname, resolve, resourceDir } from '@tauri-apps/api/path';
@@ -108,11 +109,13 @@
   });
 
   function reloadMap(mapToRefresh) {
-    Object.keys(mapToRefresh.style.sourceCaches).forEach((s) => {
+    // `sourceCaches` was renamed to `tileManagers` in maplibre-gl 5
+    const tileCaches = mapToRefresh.style.tileManagers ?? mapToRefresh.style.sourceCaches;
+    Object.keys(tileCaches).forEach((s) => {
       // Remove the tiles for a particular source
-      mapToRefresh.style.sourceCaches[s].clearTiles();
+      tileCaches[s].clearTiles();
       // Load the new tiles for the current viewport (map.transform -> viewport)
-      mapToRefresh.style.sourceCaches[s].update(mapToRefresh.transform);
+      tileCaches[s].update(mapToRefresh.transform);
     });
     // Force a repaint, so that the map will be repainted without you having to touch the map
     mapToRefresh.triggerRepaint();
@@ -220,6 +223,14 @@
   }
   function layerIdPrefix(sId, id: string) {
     return `___${sId}___${id}`;
+  }
+  // `mvt` (Mapbox Vector Tile) or `mlt` (MapLibre Tile), as understood by the maplibre-gl
+  // `encoding` source property. The backend reports it in the tiles.json it serves.
+  function tileEncoding(sourceData): 'mvt' | 'mlt' {
+    return sourceData?.encoding === 'mlt' || sourceData?.format === 'mlt' ? 'mlt' : 'mvt';
+  }
+  function isVectorSource(sourceData) {
+    return !!(sourceData?.vector_layers || sourceData?.Layer);
   }
   function addPolygonLayer(map: Map, sId, id: string, layerColor, layers) {
     let layerId = `${layerIdPrefix(sId, id)}-polygons`;
@@ -427,6 +438,7 @@
       resultMap.addSource(sId, {
         type: 'vector',
         url: json_url,
+        encoding: tileEncoding(vectorData),
       });
       const layers = (vectorData.layers = {
         points: [],
@@ -486,10 +498,16 @@
       zoom = mainMap.getZoom();
       center = mainMap.getCenter();
     }
-    if (sourceData.vector_layers || sourceData.Layer) {
+    if (isVectorSource(sourceData)) {
       const styleSrc = await resolve(await resourceDir(), `_up_/resources/styles/${basemap}.json`);
       const styleStr: string = await readTextFile(styleSrc);
       const style = JSON.parse(styleStr.replace('{{json_url}}', json_url));
+      // the basemap style reuses the mbtiles we just opened, so it needs the same tile encoding
+      Object.values(style.sources ?? {}).forEach((s: any) => {
+        if (s.type === 'vector' && s.url === json_url) {
+          s.encoding = tileEncoding(sourceData);
+        }
+      });
       const showBackground =
         key === 'main' ? mainShowBackgroundLayer : secondaryShowBackgroundLayer;
       style.layers.forEach((l) => {
@@ -648,7 +666,7 @@
         } else {
           let sourceData = await (await fetch(json_url)).json();
 
-          if (sourceData.vector_layers || sourceData.Layer) {
+          if (isVectorSource(sourceData)) {
             addVectorMBtiles(mainMap, { key, path, json_url, source_id }, sourceData);
           } else {
             addRasterMBtiles(
@@ -661,7 +679,7 @@
       } else if (key === 'secondary') {
         if (secondaryMap) {
           let sourceData = await (await fetch(json_url)).json();
-          if (sourceData.vector_layers || sourceData.Layer) {
+          if (isVectorSource(sourceData)) {
             addVectorMBtiles(secondaryMap, { key, path, json_url, source_id }, sourceData);
           } else {
             addRasterMBtiles(
@@ -849,6 +867,26 @@
     }
     return vg.map(convertRing);
   }
+
+  // MLT has no `VectorTile` equivalent: the decoder hands back one FeatureTable per layer,
+  // holding columnar vectors. `type` is a GEOMETRY_TYPE (0..5), not an MVT geometry type.
+  function dumpMLTTile(buffer: ArrayBuffer) {
+    const featureTables = decodeMLTTile(new Uint8Array(buffer));
+    return {
+      layers: featureTables.map((ft) => ({
+        name: ft.name,
+        extent: ft.extent,
+        features: ft.getFeatures().map((f) => ({
+          type: f.geometry.type,
+          extent: ft.extent,
+          // ids beyond 2^53 are decoded as BigInt, which JSON.stringify refuses to serialize
+          id: typeof f.id === 'bigint' ? f.id.toString() : f.id,
+          properties: f.properties,
+          geometry: dumpGeometry(f.geometry.coordinates),
+        })),
+      })),
+    };
+  }
   async function copyTileAsGeoJSON(key, event) {
     try {
       const map = key === 'secondary' ? secondaryMap : mainMap;
@@ -865,9 +903,8 @@
           )
         ).arrayBuffer();
 
-        let vt = new VectorTile(new Pbf(buffer));
-        let dumpedTile = dumpTile(vt);
-        result[s.path] = dumpedTile;
+        result[s.path] =
+          tileEncoding(s) === 'mlt' ? dumpMLTTile(buffer) : dumpTile(new VectorTile(new Pbf(buffer)));
       }
       if (Object.keys(result).length === 1) {
         writeText(JSON.stringify(result[Object.keys(result)[0]]));
