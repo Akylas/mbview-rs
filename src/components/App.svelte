@@ -1,5 +1,5 @@
 <script lang="ts">
-  import FileDrop from '@akylas/svelte-tauri-filedrop';
+  import FileDrop from './FileDrop.svelte';
   import Split from '@geoffcox/svelte-splitter/src/Split.svelte';
   import { pointToTile } from '@mapbox/tilebelt';
   import { VectorTile } from '@mapbox/vector-tile';
@@ -12,7 +12,7 @@
   import { writeText } from '@tauri-apps/plugin-clipboard-manager';
   import { open } from '@tauri-apps/plugin-dialog';
   import { readTextFile } from '@tauri-apps/plugin-fs';
-  import { open as openURl } from '@tauri-apps/plugin-shell';
+  import { openUrl as openURl } from '@tauri-apps/plugin-opener';
   import {
       DataTable,
       Header,
@@ -90,14 +90,16 @@
         onMBTilesSet(event.payload);
       }
     );
-    // unlistenMenu = await getCurrent().onMenuClicked(({ payload: menuId }) => {
-    //   console.log('onMenuClicked', menuId);
-    //   switch (menuId) {
-    //     case 'learn_more':
-    //       openURl(REPO_URL);
-    //       break;
-    //   }
-    // });
+    unlistenMenu = await listen<{ message: string }>('menu', (event) => {
+      switch (event.payload.message) {
+        case 'open':
+          addMBTiles({ key: 'main' });
+          break;
+        case 'learn_more':
+          openURl(REPO_URL);
+          break;
+      }
+    });
     unlistenerReload = await listen<{ message: string }>('reload-mbtiles', (event) => {
       [mainMap, secondaryMap].forEach(reloadMap);
     });
@@ -716,16 +718,16 @@
   async function addMBTiles({ key, source_type = undefined, layer_type = undefined }) {
     try {
       console.log('addMBTiles', key, source_type, layer_type);
+      // since plugin-dialog v2 `open()` resolves to the path itself, not `{ path, name }`
       const resPath = await open({
         filters: [],
         multiple: false,
         directory: false,
         defaultPath: lastFolder,
       });
-      console.log('resPath', resPath)
       if (resPath) {
-        setupMBtiles({ filePath: resPath.path, key, source_type, layer_type });
-        lastFolder = await dirname(resPath.path);
+        setupMBtiles({ filePath: resPath, key, source_type, layer_type });
+        lastFolder = await dirname(resPath);
         localStorage.setItem('lastOpenFolder', lastFolder);
       }
     } catch (error) {

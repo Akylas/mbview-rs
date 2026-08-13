@@ -17,13 +17,10 @@ mod service;
 mod tiles;
 mod utils;
 use std::thread;
-use std::borrow::Borrow;
-
-use std::env;
 
 use std::path::PathBuf;
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
-use tauri::Manager;
+use tauri::Emitter;
 use tauri::WebviewWindow;
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
@@ -138,9 +135,18 @@ fn main() {
     .invoke_handler(tauri::generate_handler![setup_mbtiles, reload_mbtiles])
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_clipboard_manager::init())
-    .plugin(tauri_plugin_shell::init())
+    .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
+    .on_menu_event(|app, event| {
+      // Forward menu clicks to the webview; the frontend owns the actual behaviour.
+      let _ = app.emit(
+        "menu",
+        Payload {
+          message: event.id().0.clone(),
+        },
+      );
+    })
     .setup(move |app| {
       let mut menu_builder = MenuBuilder::new(app);
       #[cfg(target_os = "macos")]
@@ -176,34 +182,6 @@ fn main() {
             .close_window()
             .build()?,
         );
-      // menu = menu
-      //   .item(Submenu::new(
-      //     "File",
-      //     Menu::with_items([
-      //       CustomMenuItem::new("open", "Open...")
-      //         .accelerator("CmdOrControl+O")
-      //         .into(),
-      //       MenuItem::CloseWindow.into(),
-      //     ]),
-      //   ))
-      //   // .add_submenu(Submenu::new(
-      //   //   "Edit",
-      //   //   Menu::with_items([
-      //   //     MenuItem::Copy.into()
-      //   //   ]),
-      //   // ))
-      //   // .add_submenu(Submenu::new(
-      //   //   "View",
-      //   //   Menu::with_items([MenuItem::EnterFullScreen.into()]),
-      //   // ))
-      //   // .add_submenu(Submenu::new(
-      //   //   "Window",
-      //   //   Menu::with_items([MenuItem::Minimize.into(), MenuItem::Zoom.into()]),
-      //   // ))
-      //   .add_submenu(Submenu::new(
-      //     "Help",
-      //     Menu::with_items([CustomMenuItem::new("learn_more", "Learn More").into()]),
-      //   ));
       app.set_menu(menu_builder.build()?)?;
       WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("MBTiles Viewer")

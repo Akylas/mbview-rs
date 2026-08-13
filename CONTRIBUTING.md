@@ -18,7 +18,7 @@ Great Feature Requests tend to have:
 
 ### Prerequisite
 
--   [Tauri environment](https://tauri.studio/en/docs/getting-started/intro#setting-up-your-environment)
+-   [Tauri environment](https://v2.tauri.app/start/prerequisites/)
 -   [Node JS](https://nodejs.org/en/)
 -   [Git](https://git-scm.com/)
 -   npm or [yarn](https://yarnpkg.com/) or [pnpm](https://pnpm.io/)
