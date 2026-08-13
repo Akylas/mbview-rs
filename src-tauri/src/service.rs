@@ -80,12 +80,13 @@ pub async fn get_service(request: Request<hyper::body::Incoming>) -> Result<Resp
       let response = Response::builder();
 
       return match data_format {
-        "pbf" => match get_tile_data(&tile_meta.connection_pool.get().unwrap(), z, x, y) {
+        // vector tiles are stored gzipped, and are served uncompressed as we set no Content-Encoding
+        "pbf" | "mlt" => match get_tile_data(&tile_meta.connection_pool.get().unwrap(), z, x, y) {
           Ok(data) => {
             let data_in_format = get_data_format(&data);
             return Ok(
               response
-                .header(CONTENT_TYPE, DataFormat::Pbf.content_type())
+                .header(CONTENT_TYPE, DataFormat::new(data_format).content_type())
                 // .header("Cache-Control", "no-cache")
                 .header("Access-Control-Allow-Origin", "*")
                 .body(From::from(decode(data, data_in_format).unwrap()))
@@ -139,6 +140,15 @@ pub async fn get_service(request: Request<hyper::body::Incoming>) -> Result<Resp
               "legend": tile_meta.legend,
               "template": tile_meta.template,
           });
+          // MapLibre GL JS merges the TileJSON into the source, so this is what switches a vector
+          // source over to the MLT decoder. Values come from the style spec `encoding` enum.
+          if tile_meta.tile_format.is_vector() {
+            tile_meta_json["encoding"] = json!(if tile_meta.tile_format == DataFormat::Mlt {
+              "mlt"
+            } else {
+              "mvt"
+            });
+          }
           if let Some(json_data) = &tile_meta.json {
             for (k, v) in json_data.as_object().unwrap() {
               tile_meta_json[k] = v.clone();

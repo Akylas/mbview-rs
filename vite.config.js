@@ -43,8 +43,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: '../build',
       emptyOutDir: true,
-      // tauri supports es2021
-      target: ['es2021', 'chrome97', 'safari13'],
+      // tauri supports es2021; safari 14 is the floor for BigInt literals, which the MLT decoder uses
+      target: ['es2021', 'chrome97', 'safari14'],
       // don't minify for debug builds
       minify: !process.env.TAURI_DEBUG && 'esbuild',
       // produce sourcemaps for debug builds

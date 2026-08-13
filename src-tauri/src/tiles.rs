@@ -14,7 +14,7 @@ use serde_json::Value as JSONValue;
 
 use crate::errors::{Error, Result};
 
-use crate::utils::{get_data_format, DataFormat};
+use crate::utils::{get_tile_format, DataFormat};
 
 pub type Connection = r2d2::PooledConnection<SqliteConnectionManager>;
 
@@ -211,7 +211,7 @@ pub fn get_data_format_via_query(
   };
   let data_format: DataFormat = statement
     .query_row([], |row| {
-      Ok(get_data_format(&row.get::<_, Vec<u8>>(0).unwrap()))
+      Ok(get_tile_format(&row.get::<_, Vec<u8>>(0).unwrap()))
     })
     .unwrap_or(DataFormat::Unknown);
   Ok(data_format)
@@ -250,6 +250,9 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
     },
     Err(err) => return Err(err),
   };
+  // Sniffing cannot tell a broken MVT from a broken MLT, so the `format` metadata entry gets the
+  // final say between the two vector formats. Image formats have magic bytes and stay as detected.
+  let mut declared_format: Option<DataFormat> = None;
 
   let mut metadata = TileMeta {
     connection_pool,
@@ -299,6 +302,7 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
           Err(_) => 19,
         })
       }
+      "format" => declared_format = Some(DataFormat::new(&value)),
       "description" => metadata.description = Some(value),
       "attribution" => metadata.attribution = Some(value),
       "type" => metadata.layer_type = Some(value),
@@ -306,6 +310,11 @@ pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
       "template" => metadata.template = Some(value),
       "json" => metadata.json = Some(serde_json::from_str(&value).unwrap()),
       _ => (),
+    }
+  }
+  if let Some(declared) = declared_format {
+    if declared.is_vector() && metadata.tile_format.is_vector() {
+      metadata.tile_format = declared;
     }
   }
   // println!("get_tile_details done {}", path.clone().to_str().unwrap());
