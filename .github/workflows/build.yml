@@ -17,7 +17,7 @@ jobs:
             args: '--target aarch64-apple-darwin'
           - platform: 'macos-latest' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
+          - platform: 'ubuntu-22.04' # oldest glibc we support for the AppImage/deb bundles
             args: ''
           - platform: 'windows-latest'
             args: ''
@@ -25,7 +25,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: true
       
@@ -33,7 +33,15 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential \
+            file \
+            patchelf
 
       - name: Node.js enable corepack
         run: corepack enable
@@ -59,7 +67,7 @@ jobs:
         with:
           install-command: yarn install --immutable --silent
 
-      - uses: tauri-apps/tauri-action@dev
+      - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -72,4 +80,5 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_PROVIDER_SHORT_NAME: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
+        with:
           args: ${{ matrix.args }}

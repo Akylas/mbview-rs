@@ -1,4 +1,5 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
   "build": {
     "beforeBuildCommand": "npm run build:web",
     "beforeDevCommand": "npm run dev:web",
@@ -8,21 +9,9 @@
   "productName": "MBTilesViewer",
   "identifier": "com.akylas.mbview",
   "plugins": {
-    "fs": {
-      "scope": {
-        "allow": [
-          "**"
-        ],
-        "deny": []
-      }
-    },
     "updater": {
       "pubkey":"dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDczQzE2NzMzNThBQTQ3NEUKUldST1I2cFlNMmZCY3hNVXJhYlVrckRMekpFZWlobENLNTB5Qjl1cUU4MHdlUFBVbXJhSFFnd28K",
       "endpoints": []
-    },
-    "protocol": {
-      "all": true,
-      "asset": true
     }
   },
   "app": {
@@ -43,6 +32,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "category": "DeveloperTool",
     "copyright": "© 2021 Akylas",
     "linux": {
@@ -63,7 +53,7 @@
       "entitlements": null,
       "exceptionDomain": "localhost",
       "frameworks": [],
-      "minimumSystemVersion": "10.13",
+      "minimumSystemVersion": "10.15",
       "signingIdentity": "Apple Development: Martin Guillon (4ZZRPWM525)"
     },
     "resources": [

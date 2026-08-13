@@ -6,38 +6,38 @@ authors = [ "dev@akylasfr" ]
 license = "MIT"
 repository = "https://github.com/farfromrefug/mbview"
 default-run = "MBTilesViewer"
-edition = "2018"
+edition = "2021"
+rust-version = "1.77.2"
 build = "src/build.rs"
 include = [ "**/*.rs" ]
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-beta.18", features = [ ] }
+tauri-build = { version = "2.6", features = [ ] }
 
 [dependencies]
 r2d2 = "0.8"
-r2d2_sqlite = "0.24.0"
+r2d2_sqlite = "0.35"
 flate2 = "1.0"
 regex = "1.9"
 lazy_static = "1.4"
 serde_json = "1.0"
 md5 = "0.7"
-libsqlite3-sys = "0.28.0"
-http-body-util = "0.1.1"
-bytes = "1.5.0"
-hyper-util = "0.1.3"
+http-body-util = "0.1"
+bytes = "1.5"
+hyper-util = { version = "0.1", features = [ "tokio", "server", "http1", "http2" ] }
 hotwatch = "0.5"
 tokio = { version = "1.32", features = [ "full" ] }
-hyper = { version = "1.1.0", features = [ "server", "http1", "http2" ] }
+hyper = { version = "1.1", features = [ "server", "http1", "http2" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { version = "2.0.0-beta.23", features = [ "protocol-asset" ] }
-tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", version = "2.0.0-beta.10", branch = "v2" }
-tauri-plugin-dialog = { git = "https://github.com/tauri-apps/plugins-workspace", version = "2.0.0-beta.10", branch = "v2" }
-tauri-plugin-fs = { git = "https://github.com/tauri-apps/plugins-workspace", version = "2.0.0-beta.10", branch = "v2" }
-tauri-plugin-shell = { git = "https://github.com/tauri-apps/plugins-workspace", version = "2.0.0-beta.8", branch = "v2" }
-tauri-plugin-clipboard-manager = { git = "https://github.com/tauri-apps/plugins-workspace", version = "2.1.0-beta.5", branch = "v2" }
+tauri = { version = "2.11", features = [ "protocol-asset" ] }
+tauri-plugin-window-state = "2.4"
+tauri-plugin-dialog = "2.7"
+tauri-plugin-fs = "2.5"
+tauri-plugin-clipboard-manager = "2.3"
+tauri-plugin-opener = "2.5"
 
   [dependencies.rusqlite]
-  version = "0.31.0"
+  version = "0.40"
   features = [ "bundled" ]
 
 [features]
@@ -50,3 +50,8 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+strip = true
+
+# Speeds up `tauri dev` a lot: dependencies are still optimized, our crate is not.
+[profile.dev.package."*"]
+opt-level = 2

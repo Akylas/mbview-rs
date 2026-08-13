@@ -38,17 +38,18 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['highlight.js', 'highlight.js/lib/core'],
     },
-    // to make use of `TAURI_PLATFORM`, `TAURI_ARCH`, `TAURI_FAMILY`, `TAURI_PLATFORM_VERSION`, `TAURI_PLATFORM_TYPE` and `TAURI_DEBUG` env variables
-    envPrefix: ['VITE_', 'TAURI_'],
+    // to make use of `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`,
+    // `TAURI_ENV_PLATFORM_TYPE` and `TAURI_ENV_DEBUG` env variables (renamed from `TAURI_*` in Tauri 2.0)
+    envPrefix: ['VITE_', 'TAURI_ENV_*'],
     build: {
       outDir: '../build',
       emptyOutDir: true,
       // tauri supports es2021; safari 14 is the floor for BigInt literals, which the MLT decoder uses
       target: ['es2021', 'chrome97', 'safari14'],
       // don't minify for debug builds
-      minify: !process.env.TAURI_DEBUG && 'esbuild',
+      minify: !process.env.TAURI_ENV_DEBUG && 'esbuild',
       // produce sourcemaps for debug builds
-      sourcemap: !!process.env.TAURI_DEBUG,
+      sourcemap: !!process.env.TAURI_ENV_DEBUG,
     },
     plugins: [
       svelte({
