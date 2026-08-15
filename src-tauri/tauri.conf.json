@@ -57,7 +57,7 @@
       "signingIdentity": "Apple Development: Martin Guillon (4ZZRPWM525)"
     },
     "resources": [
-      "../resources/*"
+      "../resources/**/*"
     ],
     "shortDescription": "",
     "targets": [
