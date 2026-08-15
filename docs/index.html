@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>MBTiles Viewer — look inside an .mbtiles file</title>
+    <meta
+      name="description"
+      content="A free, offline desktop app for inspecting and comparing MBTiles files. Vector (MVT and MLT) and raster tilesets, per-layer control, split-view compare and feature inspection. macOS, Windows and Linux."
+    />
+    <link rel="icon" href="images/icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="MBTiles Viewer" />
+    <meta
+      property="og:description"
+      content="Open an .mbtiles file and look inside it. No docker, no tile server, no upload."
+    />
+    <meta property="og:image" content="https://akylas.github.io/mbview-rs/images/hero.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script>
+      // resolve the theme before first paint so a dark reader never gets flashed
+      (function () {
+        var stored = null;
+        try {
+          stored = localStorage.getItem('mbview-site-theme');
+        } catch (error) {
+          /* private mode */
+        }
+        document.documentElement.dataset.theme =
+          stored ||
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      })();
+    </script>
+
+    <style>
+      @font-face {
+        font-family: 'IBM Plex Sans';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('fonts/IBMPlexSans-Regular.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'IBM Plex Sans';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url('fonts/IBMPlexSans-Medium.woff2') format('woff2');
+      }
+
+      /* the app's own token set, so the site and the product look related */
+      :root {
+        color-scheme: light;
+        --surface: #ffffff;
+        --surface-raised: #f1f1f4;
+        --surface-sunken: #f7f7f9;
+        --border: rgba(0, 0, 0, 0.12);
+        --border-strong: rgba(0, 0, 0, 0.26);
+        --text: #17171a;
+        --text-muted: #56565e;
+        --text-faint: #7c7c86;
+        --accent: #2f6fe0;
+        --accent-strong: #1f57ba;
+        --accent-soft: rgba(47, 111, 224, 0.12);
+        --accent-text: #1f57ba;
+        --on-accent: #ffffff;
+        --shadow: 0 18px 50px rgba(20, 20, 26, 0.14);
+        --radius: 12px;
+        --radius-lg: 18px;
+        --font: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+        --max: 1120px;
+      }
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+        --surface: #1b1b1d;
+        --surface-raised: #26262a;
+        --surface-sunken: #141416;
+        --border: rgba(255, 255, 255, 0.12);
+        --border-strong: rgba(255, 255, 255, 0.24);
+        --text: #f2f2f3;
+        --text-muted: #a3a3aa;
+        --text-faint: #74747c;
+        --accent: #4d8dfa;
+        --accent-strong: #2f6fe0;
+        --accent-soft: rgba(77, 141, 250, 0.18);
+        --accent-text: #9dc0ff;
+        --shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--surface-sunken);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 16px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--accent-text);
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+      .wrap {
+        width: 100%;
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      /* ---------------------------------------------------------------- nav */
+      header.nav {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 1px solid var(--border);
+        background: color-mix(in srgb, var(--surface) 85%, transparent);
+        backdrop-filter: blur(12px);
+      }
+      .nav .wrap {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        height: 60px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 500;
+        text-decoration: none;
+        color: var(--text);
+      }
+      .brand img {
+        width: 26px;
+        height: 26px;
+      }
+      .nav nav {
+        display: flex;
+        gap: 20px;
+        margin-left: auto;
+        font-size: 14px;
+      }
+      .nav nav a {
+        color: var(--text-muted);
+        text-decoration: none;
+      }
+      .nav nav a:hover {
+        color: var(--text);
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+      }
+      .icon-btn:hover {
+        color: var(--text);
+        border-color: var(--border-strong);
+      }
+      @media (max-width: 720px) {
+        .nav nav {
+          display: none;
+        }
+      }
+
+      /* -------------------------------------------------------------- hero */
+      .hero {
+        padding: 72px 0 40px;
+        text-align: center;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 22px;
+        padding: 5px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+      .pill b {
+        color: var(--accent-text);
+        font-weight: 500;
+      }
+      h1 {
+        margin: 0 0 16px;
+        font-size: clamp(34px, 6vw, 56px);
+        font-weight: 500;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+      }
+      .lede {
+        max-width: 620px;
+        margin: 0 auto 28px;
+        color: var(--text-muted);
+        font-size: clamp(16px, 2.2vw, 19px);
+      }
+      .cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 10px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 20px;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        font-size: 15px;
+        font-weight: 500;
+        text-decoration: none;
+        transition:
+          background 140ms ease,
+          border-color 140ms ease;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: var(--on-accent);
+      }
+      .btn.primary:hover {
+        background: var(--accent-strong);
+      }
+      .btn.ghost {
+        border-color: var(--border-strong);
+        color: var(--text);
+      }
+      .btn.ghost:hover {
+        background: var(--surface);
+      }
+      .note {
+        color: var(--text-faint);
+        font-size: 13px;
+      }
+
+      .shot {
+        margin: 40px 0 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .shot img {
+        display: block;
+        width: 100%;
+      }
+
+      /* ---------------------------------------------------------- sections */
+      section {
+        padding: 64px 0;
+        /* the nav is sticky, so an anchor jump has to stop short of it */
+        scroll-margin-top: 60px;
+      }
+      section.alt {
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: clamp(24px, 3.4vw, 32px);
+        font-weight: 500;
+        letter-spacing: -0.01em;
+      }
+      .sub {
+        max-width: 620px;
+        margin: 0 0 36px;
+        color: var(--text-muted);
+      }
+      .center {
+        text-align: center;
+      }
+      .center .sub {
+        margin-inline: auto;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 18px;
+      }
+      .card {
+        padding: 22px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+      section.alt .card {
+        background: var(--surface-sunken);
+      }
+      .card h3 {
+        margin: 14px 0 6px;
+        font-size: 17px;
+        font-weight: 500;
+      }
+      .card p {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 14.5px;
+      }
+      .card svg {
+        color: var(--accent);
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        align-items: center;
+      }
+      .split + .split {
+        margin-top: 64px;
+      }
+      .split.flip .copy {
+        order: 2;
+      }
+      @media (max-width: 860px) {
+        .split {
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+        .split.flip .copy {
+          order: 0;
+        }
+      }
+      .copy h2 {
+        font-size: clamp(22px, 3vw, 28px);
+      }
+      .copy ul {
+        margin: 16px 0 0;
+        padding: 0;
+        list-style: none;
+        color: var(--text-muted);
+        font-size: 15px;
+      }
+      .copy li {
+        position: relative;
+        margin-bottom: 8px;
+        padding-left: 24px;
+      }
+      .copy li::before {
+        content: '';
+        position: absolute;
+        top: 9px;
+        left: 6px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      .formats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 20px;
+      }
+      .tag {
+        padding: 4px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-raised);
+        color: var(--text-muted);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      table.keys {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14.5px;
+      }
+      table.keys td {
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-muted);
+      }
+      table.keys td:first-child {
+        width: 190px;
+        color: var(--text);
+      }
+      kbd {
+        display: inline-block;
+        min-width: 22px;
+        padding: 2px 7px;
+        border: 1px solid var(--border-strong);
+        border-bottom-width: 2px;
+        border-radius: 6px;
+        background: var(--surface-raised);
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 12px;
+        text-align: center;
+      }
+
+      .downloads {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 28px;
+      }
+      .dl {
+        display: block;
+        padding: 22px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: inherit;
+        text-align: center;
+        text-decoration: none;
+        transition:
+          border-color 140ms ease,
+          transform 140ms ease;
+      }
+      .dl:hover {
+        border-color: var(--accent);
+        transform: translateY(-2px);
+      }
+      .dl b {
+        display: block;
+        font-size: 17px;
+        font-weight: 500;
+      }
+      .dl span {
+        color: var(--text-faint);
+        font-family: var(--mono);
+        font-size: 12.5px;
+      }
+
+      pre.term {
+        margin: 20px 0 0;
+        padding: 16px 18px;
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface-sunken);
+        color: var(--text-muted);
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      pre.term .c {
+        color: var(--text-faint);
+      }
+
+      footer {
+        padding: 40px 0 60px;
+        border-top: 1px solid var(--border);
+        color: var(--text-faint);
+        font-size: 14px;
+      }
+      footer .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 24px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      footer a {
+        color: var(--text-muted);
+        text-decoration: none;
+      }
+      footer a:hover {
+        color: var(--text);
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="nav">
+      <div class="wrap">
+        <a class="brand" href="#top">
+          <img src="images/icon.png" alt="" />
+          <span>MBTiles Viewer</span>
+        </a>
+        <nav>
+          <a href="#features">Features</a>
+          <a href="#compare">Compare</a>
+          <a href="#inspect">Inspect</a>
+          <a href="#download">Download</a>
+          <a href="https://github.com/Akylas/mbview-rs">GitHub</a>
+        </nav>
+        <button class="icon-btn" id="theme" type="button" aria-label="Switch theme" title="Switch theme">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="top">
+      <div class="hero wrap">
+        <span class="pill">Free and open source · <b>Apache-2.0</b></span>
+        <h1>Look inside an<br />.mbtiles file</h1>
+        <p class="lede">
+          A desktop app that opens a tileset straight off disk — every layer coloured and listed,
+          features inspectable, two files side by side. No docker, no tile server, no upload.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/Akylas/mbview-rs/releases/latest">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+            </svg>
+            Download
+          </a>
+          <a class="btn ghost" href="https://github.com/Akylas/mbview-rs">View on GitHub</a>
+        </div>
+        <p class="note">macOS · Windows · Linux</p>
+
+        <figure class="shot">
+          <img
+            src="images/hero.webp"
+            alt="The app showing a vector tileset over Grenoble, with its 19 source-layers listed and coloured in the side panel"
+            width="1800"
+            height="1153"
+          />
+        </figure>
+      </div>
+
+      <section id="features" class="alt">
+        <div class="wrap center">
+          <h2>Built for the moment after a tile build</h2>
+          <p class="sub">
+            The point is answering “did that actually work?” — quickly, on the file you just
+            produced, without standing anything up first.
+          </p>
+        </div>
+        <div class="wrap">
+          <div class="grid">
+            <div class="card">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 13 9 5 9-5" />
+              </svg>
+              <h3>Every layer, coloured</h3>
+              <p>
+                A stable colour per source-layer name, so water reads blue and roads read orange in
+                every file you open. Show, hide, reorder and fade each one.
+              </p>
+            </div>
+            <div class="card">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="4" width="7" height="16" rx="1" /><rect x="14" y="4" width="7" height="16" rx="1" />
+              </svg>
+              <h3>Compare two tilesets</h3>
+              <p>
+                A split view with a swipe handle and a synced camera. Old build on one side, new
+                build on the other.
+              </p>
+            </div>
+            <div class="card">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="2.5" />
+              </svg>
+              <h3>Inspect anything</h3>
+              <p>
+                Click, hover or hold Shift to read a feature's attributes, then open the sortable,
+                searchable table of everything you selected.
+              </p>
+            </div>
+            <div class="card">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 3v18" />
+              </svg>
+              <h3>Tile-level debugging</h3>
+              <p>
+                Tile boundaries, collision boxes, a live z/x/y readout, and “copy this tile as
+                GeoJSON” from the right-click menu.
+              </p>
+            </div>
+            <div class="card">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M4 4h16v12H4z" /><path d="M2 20h20" />
+              </svg>
+              <h3>100% offline</h3>
+              <p>
+                A small Rust server reads tiles straight out of the SQLite file over localhost. The
+                file never leaves your machine.
+              </p>
+            </div>
+            <div class="card">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" />
+              </svg>
+              <h3>Reloads itself</h3>
+              <p>
+                The file is watched. Rebuild the tileset and the map redraws — with the same camera,
+                the same order, the same layers hidden.
+              </p>
+            </div>
+          </div>
+          <div class="formats">
+            <span class="tag">MVT / pbf</span>
+            <span class="tag">MLT</span>
+            <span class="tag">raster</span>
+            <span class="tag">hillshade</span>
+            <span class="tag">terrain-RGB</span>
+            <span class="tag">.mbtiles</span>
+            <span class="tag">.etiles</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="compare">
+        <div class="wrap">
+          <div class="split">
+            <div class="copy">
+              <h2>Two files, one swipe</h2>
+              <p class="sub">
+                Open a second set of tiles in map B and drag the handle across. The cameras stay
+                locked together, and the panel gets A/B tabs so each side keeps its own stack.
+              </p>
+              <ul>
+                <li>Vector against raster, old build against new</li>
+                <li>Stack several files per side, in the order you choose</li>
+                <li>Split position and both stacks come back next launch</li>
+              </ul>
+            </div>
+            <figure class="shot" style="margin: 0">
+              <img
+                src="images/compare.webp"
+                alt="Split view: a vector tileset on the left, a terrain raster tileset on the right"
+                width="1800"
+                height="1153"
+              />
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section id="inspect" class="alt">
+        <div class="wrap">
+          <div class="split flip">
+            <div class="copy">
+              <h2>Read the data, not just the picture</h2>
+              <p class="sub">
+                Click a feature to see its attributes where you clicked, and open the bottom panel
+                for the full table of everything under the pointer.
+              </p>
+              <ul>
+                <li>Sortable and searchable, with the raw JSON per row</li>
+                <li>Copy the selection as GeoJSON, or a whole tile at once</li>
+                <li>Hidden layers never answer a query</li>
+              </ul>
+            </div>
+            <figure class="shot" style="margin: 0">
+              <img
+                src="images/inspect.webp"
+                alt="A feature popup over the map and the feature table listing POIs with their attributes"
+                width="1800"
+                height="1153"
+              />
+            </figure>
+          </div>
+
+          <div class="split" style="margin-top: 64px">
+            <div class="copy">
+              <h2>Light, dark, and small</h2>
+              <p class="sub">
+                The app follows your system theme, and below 840px the layers panel becomes a bottom
+                sheet — so it stays usable in a window parked beside your editor.
+              </p>
+            </div>
+            <figure class="shot" style="margin: 0">
+              <img
+                src="images/dark.webp"
+                alt="The same tileset in the dark theme"
+                width="1800"
+                height="1153"
+              />
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <div class="split">
+            <div class="copy">
+              <h2>Keyboard first</h2>
+              <table class="keys">
+                <tr>
+                  <td><kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>O</kbd></td>
+                  <td>Open an MBTiles file</td>
+                </tr>
+                <tr>
+                  <td><kbd>L</kbd></td>
+                  <td>Layers panel</td>
+                </tr>
+                <tr>
+                  <td><kbd>S</kbd></td>
+                  <td>Split view</td>
+                </tr>
+                <tr>
+                  <td><kbd>F</kbd></td>
+                  <td>Feature table</td>
+                </tr>
+                <tr>
+                  <td><kbd>B</kbd></td>
+                  <td>Basemap</td>
+                </tr>
+                <tr>
+                  <td><kbd>T</kbd></td>
+                  <td>Tile boundaries</td>
+                </tr>
+                <tr>
+                  <td><kbd>I</kbd></td>
+                  <td>Popup: click → hover → off</td>
+                </tr>
+              </table>
+            </div>
+            <div class="copy">
+              <h2>Or build it yourself</h2>
+              <p class="sub">
+                Tauri, Svelte and MapLibre GL on the front, hyper and SQLite on the back. Around
+                1000 lines of Rust and a frontend you can read in an afternoon.
+              </p>
+              <pre class="term"><span class="c"># clone, install, run</span>
+git clone https://github.com/Akylas/mbview-rs.git
+cd mbview-rs
+yarn install
+yarn dev</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="download" class="alt center">
+        <div class="wrap">
+          <h2>Download</h2>
+          <p class="sub">Latest release, for every desktop platform. Free, forever.</p>
+          <div class="downloads">
+            <a class="dl" href="https://github.com/Akylas/mbview-rs/releases/latest">
+              <b>macOS</b><span>.app — Apple Silicon &amp; Intel</span>
+            </a>
+            <a class="dl" href="https://github.com/Akylas/mbview-rs/releases/latest">
+              <b>Windows</b><span>.msi</span>
+            </a>
+            <a class="dl" href="https://github.com/Akylas/mbview-rs/releases/latest">
+              <b>Linux</b><span>.deb</span>
+            </a>
+          </div>
+          <p class="note" style="margin-top: 22px">
+            Something not working?
+            <a href="https://github.com/Akylas/mbview-rs/issues">Open an issue</a> — or come say
+            what you need in
+            <a href="https://github.com/Akylas/mbview-rs/discussions">Discussions</a>.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>Apache-2.0 · built by <a href="https://github.com/Akylas">Akylas</a></span>
+        <span>
+          <a href="https://github.com/Akylas/mbview-rs">Source</a> ·
+          <a href="https://github.com/Akylas/mbview-rs/releases">Releases</a> ·
+          <a href="https://github.com/Akylas/mbview-rs/blob/master/CONTRIBUTING.md">Contributing</a>
+        </span>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById('theme').addEventListener('click', function () {
+        var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
+        try {
+          localStorage.setItem('mbview-site-theme', next);
+        } catch (error) {
+          /* private mode */
+        }
+      });
+    </script>
+  </body>
+</html>
