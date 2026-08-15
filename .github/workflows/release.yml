@@ -131,7 +131,7 @@ jobs:
 
       - name: Get Changelog Entry
         id: changelog_reader
-        uses: Akylas/changelog-reader-action@v4
+        uses: Akylas/changelog-reader-action@v4.0.0
         with:
           version: ${{ steps.resolve.outputs.version }}
           path: ./CHANGELOG.md
