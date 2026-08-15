@@ -1,6 +1,6 @@
 [package]
 name = "MBTilesViewer"
-version = "2.0.0"
+version = "1.9.2"
 description = "MBtiles viewer and inspector"
 authors = [ "dev@akylasfr" ]
 license = "MIT"
