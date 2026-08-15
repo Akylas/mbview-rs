@@ -30,14 +30,6 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
     },
 
-    resolve: {
-      alias: {
-        'mapbox-gl': 'maplibre-gl',
-      },
-    },
-    optimizeDeps: {
-      include: ['highlight.js', 'highlight.js/lib/core'],
-    },
     // to make use of `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`,
     // `TAURI_ENV_PLATFORM_TYPE` and `TAURI_ENV_DEBUG` env variables (renamed from `TAURI_*` in Tauri 2.0)
     envPrefix: ['VITE_', 'TAURI_ENV_*'],

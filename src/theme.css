@@ -1,0 +1,227 @@
+/*
+ * The three weights the UI actually uses, declared directly instead of pulled
+ * from carbon's SCSS, which used to drag the whole design system in with them.
+ */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/IBMPlexSans-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/IBMPlexSans-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/IBMPlexMono-Regular.woff2') format('woff2');
+}
+
+/*
+ * One token set for both shells and both themes.
+ *
+ * Sizes that differ between pointer and touch, and colours that differ between
+ * light and dark, are both expressed as tokens rather than as per-component
+ * media queries — so a control is written once and adapts on its own.
+ */
+:root {
+  color-scheme: light;
+
+  --surface: #ffffff;
+  --surface-raised: #f1f1f4;
+  --surface-sunken: #f7f7f9;
+  --surface-scrim: rgba(23, 23, 26, 0.35);
+  /* panels float over the map, so they need a backdrop of their own */
+  --surface-float: rgba(255, 255, 255, 0.92);
+
+  --border: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.26);
+
+  --text: #17171a;
+  --text-muted: #56565e;
+  --text-faint: #7c7c86;
+
+  --accent: #2f6fe0;
+  --accent-strong: #1f57ba;
+  --on-accent: #ffffff;
+  /* tinted fill + readable ink for badges, chips and active states */
+  --accent-soft: rgba(47, 111, 224, 0.12);
+  --accent-text: #1f57ba;
+
+  --danger: #d13a30;
+  --danger-soft: rgba(209, 58, 48, 0.12);
+
+  --success: #12805e;
+  --success-soft: rgba(18, 128, 94, 0.14);
+  --success-text: #0d6047;
+
+  --warning: #c2860a;
+  --warning-soft: rgba(194, 134, 10, 0.16);
+  --warning-text: #8a5d00;
+  --on-warning: #17171a;
+
+  --shadow: 0 8px 24px rgba(20, 20, 26, 0.16);
+
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* the smallest comfortable hit target; touch overrides it below */
+  --control-h: 30px;
+  --tap: 30px;
+  --font: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* so panels can clear the notch and the home bar */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/*
+ * Dark is keyed off `data-theme` alone rather than off prefers-color-scheme,
+ * so there is exactly one copy of these values. The attribute is stamped
+ * before first paint by the inline script in index.html and kept in step
+ * afterwards by lib/theme.ts, which is also what follows the system when the
+ * Appearance setting is left on Auto.
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface: #1b1b1d;
+  --surface-raised: #26262a;
+  --surface-sunken: #141416;
+  --surface-scrim: rgba(0, 0, 0, 0.5);
+  --surface-float: rgba(27, 27, 29, 0.92);
+
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.24);
+
+  --text: #f2f2f3;
+  --text-muted: #a3a3aa;
+  --text-faint: #74747c;
+
+  --accent: #4d8dfa;
+  --accent-strong: #2f6fe0;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(77, 141, 250, 0.18);
+  --accent-text: #9dc0ff;
+
+  --danger: #f2645a;
+  --danger-soft: rgba(242, 100, 90, 0.16);
+
+  --success: #4cc38a;
+  --success-soft: rgba(76, 195, 138, 0.18);
+  --success-text: #86dcb2;
+
+  --warning: #e8b339;
+  --warning-soft: rgba(232, 179, 57, 0.16);
+  --warning-text: #f0cd82;
+  --on-warning: #17171a;
+
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+/*
+ * Coarse pointer rather than a width query: a touchscreen laptop in a wide
+ * window still needs the big targets, and a narrow desktop window does not.
+ */
+@media (pointer: coarse) {
+  :root {
+    --control-h: 40px;
+    --tap: 40px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--surface-sunken);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  /* the map owns every gesture; the page itself must never rubber-band */
+  overscroll-behavior: none;
+}
+
+input,
+button,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/*
+ * Chrome is not a document: dragging across a button label should never start
+ * a text selection, and a long-press on one should not raise the selection
+ * handles. Anything that holds real content opts back in below.
+ */
+button,
+label,
+.segment,
+[role='button'] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+[contenteditable='true'],
+.selectable,
+.selectable * {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* only ever show focus rings for keyboard users, not after a tap */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+.mb-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mb-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.mb-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+.mb-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}

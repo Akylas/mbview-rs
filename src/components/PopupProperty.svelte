@@ -1,35 +1,39 @@
 <script lang="ts">
   export let name: string;
   export let value: any;
-  function displayValue(value, propName) {
-    if (propName === '@timestamp') {
-      return value.toString() + '<br>[ ' + new Date(value * 1000).toISOString() + ' ]';
+
+  function display(raw: any, propName: string) {
+    if (raw === undefined || raw === null) return '—';
+    if (propName === '@timestamp' || propName === 'timestamp') {
+      const seconds = Number(raw);
+      if (!Number.isNaN(seconds)) {
+        return `${raw} (${new Date(seconds * 1000).toISOString()})`;
+      }
     }
-    if (value === undefined || value === null) return null;
-    if (value.toString)
-      return value.toString();
-    return value;
+    if (typeof raw === 'object') return JSON.stringify(raw);
+    return String(raw);
   }
 </script>
 
-<div class="mbview_property">
-  <div class="mbview_property-name">{name}</div>
-  <div class="mbview_property-value">
-    {displayValue(value, name)}
-  </div>
+<div class="property">
+  <div class="name">{name}</div>
+  <div class="value">{display(value, name)}</div>
 </div>
 
 <style>
-  .mbview_property {
+  .property {
     display: table-row;
   }
-
-  .mbview_property-value {
-    display: table-cell;
-  }
-
-  .mbview_property-name {
+  .name {
     display: table-cell;
     padding-right: 10px;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+  .value {
+    display: table-cell;
+    max-width: 220px;
+    overflow-wrap: anywhere;
+    font-family: var(--mono);
   }
 </style>

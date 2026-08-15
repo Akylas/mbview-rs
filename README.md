@@ -29,16 +29,32 @@ MBTiles Viewer is a tool to view and inspect `mbtiles` files without the need of
 
 -   100% offline
 -   load vector mbtiles, both MVT (`pbf`) and MLT ([MapLibre Tile](https://github.com/maplibre/maplibre-tile-spec)) encoded
-    * See all layers
-    * hide/show layers
+    * see every source layer, with a stable colour per layer name
+    * show/hide a whole file or one of its layers, with per-file opacity
+    * drag files to restack them — the panel reads top-to-bottom like the map draws
     * filter lines/polygons/points
-    * click or shift+move to inspect map elements
-    * bottom panel to view features details
--   load raster mbtiles
+    * inspect features on click, on hover, or with shift held down
+    * sortable, searchable feature table with a JSON view per row
+-   load raster mbtiles, optionally as hillshade or terrain-RGB
 -   load multiple `mbtiles` on the same map
--   split feature to view/compare `mbtiles` side by side
--   multiple themes
+-   split view to compare two sets of `mbtiles` side by side
+-   right-click the map to copy a tile as GeoJSON, its URL, or the coordinates
+-   remembers what you had open, where you were, and what you had hidden
+-   light/dark, following the system by default
+-   works down to a phone-sized window: the panel becomes a bottom sheet
 -   localized (fr/en for now)
+
+### Keyboard shortcuts
+
+| Key | Action |
+| --- | --- |
+| <kbd>⌘/Ctrl</kbd>+<kbd>O</kbd> | open an MBTiles file |
+| <kbd>L</kbd> | show/hide the layers panel |
+| <kbd>S</kbd> | split view |
+| <kbd>F</kbd> | feature table |
+| <kbd>B</kbd> | basemap |
+| <kbd>T</kbd> | tile boundaries |
+| <kbd>I</kbd> | cycle the attribute popup (click → hover → off) |
 
 You can give your suggestions and feedback on our [Discussions](https://github.com/Akylas/mbview-rs/discussions/) page. If you feel comfortable in writing code using Typescript and Rust, we highly encourage you to [contribute to this project](https://github.com/Akylas/mbview-rs/blob/master/CONTRIBUTING.md).
 

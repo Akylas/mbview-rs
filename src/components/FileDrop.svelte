@@ -17,39 +17,54 @@
     return paths.filter((path) => extensions.some((ext) => path.endsWith('.' + ext)));
   }
 
-  // `onDragDropEvent` replaces the beta-era `tauri://drag` / `tauri://drop` events.
-  const unlistening: Promise<UnlistenFn> = getCurrentWebview().onDragDropEvent((event) => {
-    const payload = event.payload;
-    switch (payload.type) {
-      case 'enter':
-        position = payload.position;
-        files = getValidPaths(payload.paths);
-        break;
-      case 'over':
-        position = payload.position;
-        break;
-      case 'drop': {
-        const dropped = getValidPaths(payload.paths);
-        files = dropped;
-        if (dropped.length > 0) {
-          handleFiles(dropped);
-        }
-        if (payload.paths.length === 1 && dropped.length === 1) {
-          handleOneFile(dropped[0]);
-        }
-        files = [];
-        position = null;
-        break;
-      }
-      default:
-        files = [];
-        position = null;
-        break;
+  // `onDragDropEvent` replaces the beta-era `tauri://drag` / `tauri://drop`
+  // events. Guarded so `vite dev` in a plain browser — where there is no
+  // webview to ask — still renders the app instead of dying on import.
+  const unlistening: Promise<UnlistenFn> | null = tryListen();
+
+  function tryListen(): Promise<UnlistenFn> | null {
+    try {
+      return listenForDrops();
+    } catch (error) {
+      console.warn('drag and drop unavailable outside the app shell', error);
+      return null;
     }
-  });
+  }
+
+  function listenForDrops() {
+    return getCurrentWebview().onDragDropEvent((event) => {
+      const payload = event.payload;
+      switch (payload.type) {
+        case 'enter':
+          position = payload.position;
+          files = getValidPaths(payload.paths);
+          break;
+        case 'over':
+          position = payload.position;
+          break;
+        case 'drop': {
+          const dropped = getValidPaths(payload.paths);
+          files = dropped;
+          if (dropped.length > 0) {
+            handleFiles(dropped);
+          }
+          if (payload.paths.length === 1 && dropped.length === 1) {
+            handleOneFile(dropped[0]);
+          }
+          files = [];
+          position = null;
+          break;
+        }
+        default:
+          files = [];
+          position = null;
+          break;
+      }
+    });
+  }
 
   onDestroy(async () => {
-    (await unlistening)();
+    (await unlistening)?.();
   });
 </script>
 
