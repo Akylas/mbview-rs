@@ -48,7 +48,7 @@ jobs:
       - name: Node.js enable corepack
         run: corepack enable
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: 'yarn'
@@ -138,7 +138,7 @@ jobs:
             args: '--target aarch64-apple-darwin'
           - platform: 'macos-latest' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04' # oldest glibc we support for the AppImage/deb bundles
+          - platform: 'ubuntu-latest' # oldest glibc we support for the AppImage/deb bundles
             args: ''
           - platform: 'windows-latest'
             args: ''
@@ -146,14 +146,14 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # build the tag, not whatever the dispatch was started from
           ref: ${{ needs.changelog.outputs.TAG }}
           submodules: true
 
       - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        if: matrix.platform == 'ubuntu-latest' # This must match the platform value defined above.
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -170,7 +170,7 @@ jobs:
         run: corepack enable
 
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: 'yarn'
@@ -190,7 +190,7 @@ jobs:
         with:
           install-command: yarn install --immutable --silent
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
