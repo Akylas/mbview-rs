@@ -1,41 +1,133 @@
 name: Release
+
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'How to bump the version'
+        type: choice
+        default: auto
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: 'Work out the next version and stop, without tagging or building'
+        type: boolean
+        default: false
+
+# a second release starting while one is mid-tag would fight over the same
+# branch, so they queue instead
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  update-changelog:
+  # Only for a manual run: bump, changelog, commit and tag. A tag push skips
+  # this and goes straight to reading the changelog.
+  version:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
-      CHANGELOG: ${{ steps.changelog_reader.outputs.changes }}
-      VERSION: ${{ steps.changelog_reader.outputs.version }}
-      STATUS: ${{ steps.changelog_reader.outputs.status }}
-
+      version: ${{ steps.bump.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-      - name: setup node
-        uses: actions/setup-node@v4
+        with:
+          # standard-version reads the tag history to work out the next version
+          fetch-depth: 0
+
+      - name: Node.js enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: 'yarn'
-      - name: Get version from tag
-        id: tag_name
+
+      - name: Install deps
+        run: yarn install --immutable --silent
+
+      - name: Bump version and changelog
+        id: bump
+        env:
+          # `auto` lets conventional commits decide; the rest force a level
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          echo ::set-output name=current_version::${GITHUB_REF#refs/tags/v}
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          args="--commit-all"
+          if [ "$RELEASE_TYPE" != "auto" ]; then
+            args="$args --release-as $RELEASE_TYPE"
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            yarn standard-version $args --dry-run
+            echo "version=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          yarn standard-version $args
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Released v$version" >> "$GITHUB_STEP_SUMMARY"
+
+          # the tag is what the rest of the pipeline builds from
+          git push --follow-tags origin "HEAD:${GITHUB_REF_NAME}"
+
+  changelog:
+    needs: [version]
+    # `version` is skipped on a tag push, which would skip this too
+    if: ${{ !cancelled() && !failure() && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION: ${{ steps.resolve.outputs.version }}
+      TAG: ${{ steps.resolve.outputs.tag }}
+      CHANGELOG: ${{ steps.changelog_reader.outputs.changes }}
+      STATUS: ${{ steps.changelog_reader.outputs.status }}
+    steps:
+      - name: Resolve the version being released
+        id: resolve
+        env:
+          BUMPED: ${{ needs.version.outputs.version }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="$BUMPED"
+          else
+            version="${GITHUB_REF#refs/tags/v}"
+          fi
+          if [ -z "$version" ]; then
+            echo "no version to release" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          # the tag the version job just pushed, which is where the changelog
+          # entry for this release lives
+          ref: ${{ steps.resolve.outputs.tag }}
+
       - name: Get Changelog Entry
         id: changelog_reader
         uses: Akylas/changelog-reader-action@v2
         with:
-          version: ${{ steps.tag_name.outputs.current_version }}
+          version: ${{ steps.resolve.outputs.version }}
           path: ./CHANGELOG.md
 
   build-tauri:
-    needs: update-changelog
+    needs: changelog
     permissions:
       contents: write
     strategy:
@@ -56,8 +148,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # build the tag, not whatever the dispatch was started from
+          ref: ${{ needs.changelog.outputs.TAG }}
           submodules: true
-      
+
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
@@ -86,10 +180,10 @@ jobs:
         with:
           # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-      
+
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "src-tauri -> target"
+          workspaces: 'src-tauri -> target'
 
       - name: Install deps
         uses: bahmutov/npm-install@v1
@@ -111,8 +205,8 @@ jobs:
           APPLE_PROVIDER_SHORT_NAME: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
         with:
           args: ${{ matrix.args }}
-          tagName: v${{ needs.update-changelog.outputs.VERSION }}
-          releaseName: v${{ needs.update-changelog.outputs.VERSION }}
-          releaseBody: ${{ needs.update-changelog.outputs.CHANGELOG }}
+          tagName: ${{ needs.changelog.outputs.TAG }}
+          releaseName: ${{ needs.changelog.outputs.TAG }}
+          releaseBody: ${{ needs.changelog.outputs.CHANGELOG }}
           releaseDraft: true
-          prerelease: ${{ needs.update-changelog.outputs.STATUS == 'prereleased' }}
+          prerelease: ${{ needs.changelog.outputs.STATUS == 'prereleased' }}

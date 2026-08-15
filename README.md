@@ -1,126 +1,184 @@
 <div align="center">
-<img height=150 src="src-tauri/icons/icon.png" />
+<img height="140" src="src-tauri/icons/icon.png" alt="MBTiles Viewer" />
+
+<h1>MBTiles Viewer</h1>
+
+<p><b>Open an <code>.mbtiles</code> file and look inside it.</b><br />
+No docker, no tile server, no upload — a desktop app that reads the file where it sits.</p>
+
+<p>
+  <a href="https://akylas.github.io/mbview-rs/"><b>Website</b></a> ·
+  <a href="https://github.com/Akylas/mbview-rs/releases"><b>Download</b></a> ·
+  <a href="https://github.com/Akylas/mbview-rs/discussions"><b>Discussions</b></a> ·
+  <a href="CONTRIBUTING.md"><b>Contributing</b></a>
+</p>
+
+<p>
+  <a href="https://github.com/Akylas/mbview-rs/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Akylas/mbview-rs?style=flat-square" /></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/Akylas/mbview-rs?style=flat-square" /></a>
+  <img alt="Platforms" src="https://img.shields.io/badge/macOS%20·%20Windows%20·%20Linux-informational?style=flat-square" />
+</p>
+
+<img src="docs/images/hero.webp" alt="MBTiles Viewer showing a vector tileset with its layer list" width="900" />
+
 </div>
 
-<p align="center"><span><b>MBTiles Viewer</b>, a cross-platform MBTiles Viewer.</span></p>
-<h4 align="center"><span><a href="https://github.com/Akylas/mbview-rs/releases">Download</a></span> • <span><a href="https://github.com/Akylas/mbview-rs/discussions">Discussions</a></span></h4>
-
-<div align="center">
-
-
-[![Windows Support](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Akylas/mbview-rs/releases) [![Ubuntu Support](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/Akylas/mbview-rs/releases) [![Arch Linux Support](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=arch-linux&logoColor=white)](https://github.com/Akylas/mbview-rs/releases) [![Windows Support](https://img.shields.io/badge/MACOS-adb8c5?style=for-the-badge&logo=macos&logoColor=white)](https://github.com/Akylas/mbview-rs/releases)
-
-</div>
-
 ---
 
-# What is MBTiles Viewer?
+## What it is
 
-![Demo](public/Screenshot.png)
+MBTiles Viewer is a small cross-platform desktop app for **inspecting and comparing `.mbtiles`
+files**. Point it at a file and it draws every layer in its own colour, lists them in a panel you
+can toggle and reorder, and lets you click any feature to read its attributes.
 
-<!-- <details>
-<summary>
-View More Screenshots
-</summary>
+It is built for the moment after a tile build finishes and you need to answer *did that actually
+work?* — before wiring the tileset into anything.
 
-</details> -->
+- **100% offline.** The file never leaves your machine. A tiny Rust HTTP server reads tiles
+  straight out of the SQLite file and serves them to the embedded map.
+- **Nothing to set up.** No docker image, no `tileserver-gl`, no upload to a viewer site.
+- **Reloads itself.** The file is watched: rebuild the tileset and the map redraws.
 
-MBTiles Viewer is a tool to view and inspect `mbtiles` files without the need of running a docker or a web server
+## Features
 
--   100% offline
--   load vector mbtiles, both MVT (`pbf`) and MLT ([MapLibre Tile](https://github.com/maplibre/maplibre-tile-spec)) encoded
-    * see every source layer, with a stable colour per layer name
-    * show/hide a whole file or one of its layers, with per-file opacity
-    * drag files to restack them — the panel reads top-to-bottom like the map draws
-    * filter lines/polygons/points
-    * inspect features on click, on hover, or with shift held down
-    * sortable, searchable feature table with a JSON view per row
--   load raster mbtiles, optionally as hillshade or terrain-RGB
--   load multiple `mbtiles` on the same map
--   split view to compare two sets of `mbtiles` side by side
--   right-click the map to copy a tile as GeoJSON, its URL, or the coordinates
--   remembers what you had open, where you were, and what you had hidden
--   light/dark, following the system by default
--   works down to a phone-sized window: the panel becomes a bottom sheet
--   localized (fr/en for now)
+|                            |                                                                                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Vector and raster**      | MVT (`pbf`) and [MLT](https://github.com/maplibre/maplibre-tile-spec) vector tiles, plus raster tilesets — optionally drawn as hillshade or terrain-RGB |
+| **Every layer, coloured**  | A stable colour per source-layer name, so `water` is blue and `transportation` is orange in every file you open |
+| **Layer control**          | Show/hide a whole file or one of its layers, set per-file opacity, filter to points, lines or polygons |
+| **Stacking order**         | Drag files to restack them — the panel reads top-to-bottom exactly like the map draws            |
+| **Compare**                | Open a second set of files in a split view with a swipe handle, synced camera, and A/B tabs      |
+| **Inspect**                | Click (or hover, or hold <kbd>Shift</kbd>) to read a feature's attributes                        |
+| **Feature table**          | Sortable, searchable table of what you selected, with the raw JSON per row and copy-as-GeoJSON   |
+| **Tile debugging**         | Tile boundaries, collision boxes, live z/x/y readout, and *copy this tile as GeoJSON* from the right-click menu |
+| **Picks up where you left**| Remembers the files you had open, the camera, the split position, and which layers you had hidden |
+| **Light and dark**         | Follows the system by default                                                                    |
+| **Works small**            | Below 840px the panel becomes a bottom sheet, so it is usable in a narrow window                 |
 
-### Keyboard shortcuts
+## Screenshots
 
-| Key | Action |
-| --- | --- |
-| <kbd>⌘/Ctrl</kbd>+<kbd>O</kbd> | open an MBTiles file |
-| <kbd>L</kbd> | show/hide the layers panel |
-| <kbd>S</kbd> | split view |
-| <kbd>F</kbd> | feature table |
-| <kbd>B</kbd> | basemap |
-| <kbd>T</kbd> | tile boundaries |
-| <kbd>I</kbd> | cycle the attribute popup (click → hover → off) |
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/compare.webp" alt="Split view comparing two tilesets" /><br /><sub><b>Compare</b> — two tilesets, one swipe handle</sub></td>
+    <td width="50%"><img src="docs/images/inspect.webp" alt="Feature popup and feature table" /><br /><sub><b>Inspect</b> — attributes on click, and a table of everything selected</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/dark.webp" alt="Dark theme" /><br /><sub><b>Dark</b> — follows the system</sub></td>
+    <td align="center"><img src="docs/images/mobile.webp" alt="Narrow window layout" width="240" /><br /><sub><b>Narrow windows</b> — the panel becomes a sheet</sub></td>
+  </tr>
+</table>
 
-You can give your suggestions and feedback on our [Discussions](https://github.com/Akylas/mbview-rs/discussions/) page. If you feel comfortable in writing code using Typescript and Rust, we highly encourage you to [contribute to this project](https://github.com/Akylas/mbview-rs/blob/master/CONTRIBUTING.md).
+## Install
 
----
+Grab the installer for your platform from the [releases page](https://github.com/Akylas/mbview-rs/releases).
 
-## Project Roadmap
+| Platform    | Bundle                                  |
+| ----------- | --------------------------------------- |
+| **macOS**   | `.app` — built for Apple Silicon and Intel |
+| **Windows** | `.msi`                                  |
+| **Linux**   | `.deb`                                  |
 
-Recommend us a feature by [opening an Discussion](https://github.com/Akylas/mbview-rs/discussions) if you'd like to.
+Then drop an `.mbtiles` file onto the window, or use <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>O</kbd>.
 
----
+> macOS may say the app is from an unidentified developer on first launch — right-click the app and
+> choose *Open*.
 
-## Installation
+## Keyboard shortcuts
 
-If you want to install on your system, you can download the installer for your operating system [on the release page](https://github.com/Akylas/mbview-rs/releases).
+| Key                                        | Action                                          |
+| ------------------------------------------ | ----------------------------------------------- |
+| <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>O</kbd> | Open an MBTiles file                            |
+| <kbd>L</kbd>                                | Show/hide the layers panel                      |
+| <kbd>S</kbd>                                | Split view                                      |
+| <kbd>F</kbd>                                | Feature table                                   |
+| <kbd>B</kbd>                                | Basemap                                         |
+| <kbd>T</kbd>                                | Tile boundaries                                 |
+| <kbd>I</kbd>                                | Cycle the attribute popup: click → hover → off  |
+| <kbd>Shift</kbd> (held)                     | Inspect features under the pointer              |
 
----
+## How it works
 
-## Bug Reporting
+```
+┌──────────────────────────────┐        ┌────────────────────────────────┐
+│  Svelte + MapLibre GL        │  HTTP  │  Rust (Tauri)                  │
+│  layer panel, compare,       │ ◀────▶ │  hyper server on :9872         │
+│  inspection, feature table   │        │  reads tiles from SQLite,      │
+│                              │        │  watches the file for changes  │
+└──────────────────────────────┘        └────────────────────────────────┘
+```
 
-If you find any bugs, please report it by submitting an issue on our [issue page](https://github.com/Akylas/mbview-rs/issues) with a detailed explanation. Giving some screenshots would also be very helpful.
+The Rust side opens the `.mbtiles` (SQLite), serves a TileJSON document and the tile blobs over
+localhost, and watches the file so a rebuild triggers a redraw. The frontend is a
+[MapLibre GL JS](https://maplibre.org/) map: it adds one source per file and, for vector tilesets,
+three layers per source-layer (polygons, lines, points) so every geometry type can be toggled on
+its own.
 
-## Feature Request
-
-You can also submit a feature request on our [issue page](https://github.com/Akylas/mbview-rs) or [discussions](https://github.com/Akylas/mbview-rs/discussions) and we will try to implement it as soon as possible. If you want to contribute to this project, please [contribute to this project](https://github.com/Akylas/mbview-rs/blob/master/CONTRIBUTING.md).
-
----
-
+Layer visibility is *derived* from three inputs — the file's own flag, the per-layer flag, and the
+geometry filter — rather than remembered, which is what keeps the panel and the map from drifting
+apart. That logic lives in [`src/lib/sources.ts`](src/lib/sources.ts) and is covered by
+`yarn test:ui`.
 
 ## Development
 
-If you want to run this project in your local system, please follow this guide:
-
-1. Fork this project
-
-2. Clone the project to your local system using this command
-
-3. Follow [this guide](https://v2.tauri.app/start/) to set up Tauri environment
+Requires [Node.js](https://nodejs.org) (LTS), [yarn](https://yarnpkg.com), and a
+[Tauri v2 environment](https://v2.tauri.app/start/prerequisites/) (Rust toolchain plus your
+platform's webview dependencies).
 
 ```sh
-$ git clone https://github.com/<your_github_username>/mbview-rs.git
+git clone https://github.com/Akylas/mbview-rs.git
+cd mbview-rs
+yarn install
+yarn dev          # runs the app with hot reload
 ```
 
-4. Change directory to the root directory of this project
+| Command           | What it does                                                       |
+| ----------------- | ------------------------------------------------------------------ |
+| `yarn dev`        | Run the app (Tauri + vite, hot reload)                             |
+| `yarn dev:web`    | Frontend only, in a browser — useful for working on the UI chrome  |
+| `yarn build`      | Build the installers for the current platform                      |
+| `yarn check`      | `cargo check`, eslint and `svelte-check`                           |
+| `yarn test`       | Rust tests plus the frontend layer-model tests                     |
+| `yarn format`     | prettier and eslint --fix                                          |
 
-```sh
-$ cd mbview-rs
+### Project layout
+
+```
+src/                 Svelte frontend
+  components/ui/     design-system primitives (button, toggle, sheet, …)
+  components/        app screens: source panel, feature table, popups
+  lib/               source model, settings, theme, layout stores
+src-tauri/src/       Rust: tile server, mbtiles reader, file watcher
+resources/styles/    optional basemap styles
+docs/                the project website (GitHub Pages)
 ```
 
-5. Install all dependencies using [`pnpm`](https://pnpm.io/) or [`yarn`](https://yarnpkg.com/)
+### Releasing
 
-```sh
-$ pnpm install
-```
+Releases are cut from the **Release** workflow. Run it from the Actions tab and pick how to bump
+the version:
 
-6. Run the project in development mode. Please note that it might takes some times for Cargo to install dependencies for the first run.
+- `auto` — from the conventional-commit history (default)
+- `patch` / `minor` / `major` — forced
 
-```sh
-$ pnpm dev
-```
+It bumps `package.json` and `Cargo.toml`, updates `CHANGELOG.md`, tags, and then builds and
+uploads a draft release for every platform. Pushing a `v*` tag by hand does the same, minus the
+bump.
 
-## Contribution Guide
+## Contributing
 
-We highly encourage you to contribute to this project (even if you are a beginner). And if you finally want to contribute to this project, please read [our contribution guide](https://github.com/Akylas/mbview-rs/blob/master/CONTRIBUTING.md).
+Issues and pull requests are welcome — including from first-time contributors. Please read the
+[contribution guide](CONTRIBUTING.md); commits follow
+[conventional commits](https://www.conventionalcommits.org/), which is what drives the changelog.
 
----
+Found a bug? [Open an issue](https://github.com/Akylas/mbview-rs/issues) with the steps and, if you
+can, the tileset that shows it. Ideas and questions belong in
+[Discussions](https://github.com/Akylas/mbview-rs/discussions).
 
-## LICENSE
+## Built with
 
-[Apache-2.0](https://github.com/Akylas/mbview-rs/blob/master/LICENSE)
+[Tauri](https://tauri.app) · [Svelte](https://svelte.dev) · [MapLibre GL JS](https://maplibre.org) ·
+[hyper](https://hyper.rs) · [rusqlite](https://github.com/rusqlite/rusqlite)
+
+## License
+
+[Apache-2.0](LICENSE) © [Akylas](https://github.com/Akylas)
