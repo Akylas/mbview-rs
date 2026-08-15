@@ -225,6 +225,22 @@ jobs:
           releaseDraft: false
           prerelease: ${{ needs.changelog.outputs.STATUS == 'prereleased' }}
 
+  # If any build matrix leg fails, delete the (partially-created) GitHub release
+  # so we don't leave a broken release behind.
+  cleanup-release:
+    if: ${{ failure() && needs.build-tauri.result != 'skipped' }}
+    needs: [changelog, build-tauri]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete failed release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.changelog.outputs.TAG }}
+        run: |
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+
   # Commit and push the version bump only after every build matrix leg succeeds.
   # If any build fails this job is skipped and the repo is left untouched.
   publish:
