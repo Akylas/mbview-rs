@@ -222,7 +222,7 @@ jobs:
           tagName: ${{ needs.changelog.outputs.TAG }}
           releaseName: ${{ needs.changelog.outputs.TAG }}
           releaseBody: ${{ needs.changelog.outputs.CHANGELOG }}
-          releaseDraft: true
+          releaseDraft: false
           prerelease: ${{ needs.changelog.outputs.STATUS == 'prereleased' }}
 
   # Commit and push the version bump only after every build matrix leg succeeds.
