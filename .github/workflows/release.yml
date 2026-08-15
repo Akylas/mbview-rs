@@ -114,11 +114,8 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
-        with:
-          # the tag the version job just pushed, which is where the changelog
-          # entry for this release lives
-          ref: ${{ steps.resolve.outputs.tag }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Get Changelog Entry
         id: changelog_reader
@@ -148,10 +145,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-        with:
-          # build the tag, not whatever the dispatch was started from
-          ref: ${{ needs.changelog.outputs.TAG }}
-          submodules: true
+      
+      - name: Debug checkout
+        run: |
+          echo "Ref: $GITHUB_REF"
+          echo "SHA: $GITHUB_SHA"
+          pwd
+          git rev-parse HEAD
+          git ls-tree -r HEAD --name-only | grep -E '(^|/)yarn\.lock$' || true
+          find . -name yarn.lock -print
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-latest' # This must match the platform value defined above.
