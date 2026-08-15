@@ -1,1115 +1,1257 @@
 <script lang="ts">
-  import FileDrop from './FileDrop.svelte';
-  import Split from '@geoffcox/svelte-splitter/src/Split.svelte';
   import { pointToTile } from '@mapbox/tilebelt';
   import { VectorTile } from '@mapbox/vector-tile';
   import Compare from '@maplibre/maplibre-gl-compare';
   import '@maplibre/maplibre-gl-compare/dist/maplibre-gl-compare.css';
   import { decodeTile as decodeMLTTile } from '@maplibre/mlt';
   import { invoke } from '@tauri-apps/api/core';
-  import { listen, UnlistenFn } from '@tauri-apps/api/event';
+  import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { dirname, resolve, resourceDir } from '@tauri-apps/api/path';
   import { writeText } from '@tauri-apps/plugin-clipboard-manager';
   import { open } from '@tauri-apps/plugin-dialog';
   import { readTextFile } from '@tauri-apps/plugin-fs';
-  import { openUrl as openURl } from '@tauri-apps/plugin-opener';
-  import {
-      DataTable,
-      Header,
-      HeaderAction,
-      HeaderGlobalAction,
-      HeaderUtilities,
-      Select,
-      SelectItem,
-      SkipToContent,
-      Theme,
-  } from 'carbon-components-svelte';
-  import type { CarbonTheme } from 'carbon-components-svelte/types/Theme/Theme.svelte';
+  import { openUrl } from '@tauri-apps/plugin-opener';
+  import Copy from 'carbon-icons-svelte/lib/Copy.svelte';
   import CopyFile from 'carbon-icons-svelte/lib/CopyFile.svelte';
-  import EarthFilled16 from 'carbon-icons-svelte/lib/EarthFilled.svelte';
-  import OpenPanelBottom16 from 'carbon-icons-svelte/lib/OpenPanelBottom.svelte';
-  import Renew16 from 'carbon-icons-svelte/lib/Renew.svelte';
-  import SplitScreen16 from 'carbon-icons-svelte/lib/SplitScreen.svelte';
-  import { CompassControl, ZoomControl } from 'mapbox-gl-controls';
-  import { Map } from 'maplibre-gl';
+  import EarthFilled from 'carbon-icons-svelte/lib/EarthFilled.svelte';
+  import Folder from 'carbon-icons-svelte/lib/Folder.svelte';
+  import Layers from 'carbon-icons-svelte/lib/Layers.svelte';
+  import Renew from 'carbon-icons-svelte/lib/Renew.svelte';
+  import Settings from 'carbon-icons-svelte/lib/Settings.svelte';
+  import SplitScreen from 'carbon-icons-svelte/lib/SplitScreen.svelte';
+  import Table from 'carbon-icons-svelte/lib/Table.svelte';
+  import View from 'carbon-icons-svelte/lib/View.svelte';
+  import { Map, NavigationControl, ScaleControl } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
-  import { MapMouseEvent } from 'maplibre-gl';
   import Pbf from 'pbf';
-  import { randomColor } from 'randomcolor';
-  import { onDestroy, onMount } from 'svelte';
-  import Highlight from 'svelte-highlight';
-  import json from 'svelte-highlight/languages/json';
-  import dark from 'svelte-highlight/styles/nnfx-dark';
-  import light from 'svelte-highlight/styles/nnfx-light';
+  import { onDestroy, onMount, tick } from 'svelte';
   import { _ } from 'svelte-i18n';
+  import { compact } from '../lib/layout';
+  import { readJSON, writeJSON } from '../lib/persisted';
+  import { rememberRecent, resolvedTheme, settings } from '../lib/settings';
+  import {
+    addSourceToMap,
+    applyBackground,
+    applyOpacity,
+    applyOrder,
+    applyVisibility,
+    boundsOf,
+    makeSource,
+    removeSourceFromMap,
+    type MapKey,
+    type SourceEntry,
+  } from '../lib/sources';
   import ContextMenu from './ContextMenu.svelte';
-  import ContextMenuOption from './ContextMenuOption.svelte';
+  import FeatureTable from './FeatureTable.svelte';
+  import FileDrop from './FileDrop.svelte';
   import type { Feature } from './Map';
   import MapPopup from './MapPopup.svelte';
-  import Menu from './Menu.svelte';
-  import { ScaleControl } from './ScaleControl';
+  import SettingsSheet from './SettingsSheet.svelte';
+  import SourceInfo from './SourceInfo.svelte';
+  import SourcePanel from './SourcePanel.svelte';
+  import StatusBar from './StatusBar.svelte';
+  import IconButton from './ui/IconButton.svelte';
+  import MenuItem from './ui/MenuItem.svelte';
+  import Resizer from './ui/Resizer.svelte';
+  import SegmentedControl from './ui/SegmentedControl.svelte';
+  import Sheet from './ui/Sheet.svelte';
+
+  /* ---------------------------------------------------------------------- */
+  /* state                                                                  */
+  /* ---------------------------------------------------------------------- */
 
   let mainMap: Map = null;
   let secondaryMap: Map = null;
-  let compareMap: Compare;
-  let wantTileBounds = false;
-  let mainPopupOnClick = true;
-  let secondaryPopupOnClick = true;
-  let mainShowBackgroundLayer = false;
-  let secondaryShowBackgroundLayer = false;
-  let showBottomPanel = false;
-  let basemap = 'basic';
-  let bottomSplit: Split;
-  let secondarySplit: Split;
-  // let mapLayers: string[] = [];
-  // let mapSources: string[] = [];
-  let unlistener: UnlistenFn;
-  let unlistenerReload: UnlistenFn;
-  let unlistenMenu: UnlistenFn;
+  let compareMap: Compare = null;
 
-  let mainFeatures: Feature[];
-  let secondaryFeatures: Feature[];
-  let mainSources = [];
-  let secondarySources = [];
-  let wantPopup = true;
+  let mainSources: SourceEntry[] = [];
+  let secondarySources: SourceEntry[] = [];
 
-  let mainMapDiv;
-  let secondaryMapDiv;
+  let mainFeatures: Feature[] = [];
+  let secondaryFeatures: Feature[] = [];
 
-  let savedZoom = localStorage.getItem('lastZoom') ? parseFloat(localStorage.getItem('lastZoom')) : undefined;
-  let savedPosition = localStorage.getItem('lastPosition') ? JSON.parse(localStorage.getItem('lastPosition')) : undefined;
-  let savedSplitPosition;
+  let mainMapDiv: HTMLElement;
+  let secondaryMapDiv: HTMLElement;
 
-  // $: console.log('mainFeatures', mainFeatures);
+  /** which map the panel and dropped files are pointed at */
+  let activeKey: MapKey = 'main';
+  let panelSheetOpen = false;
+  let settingsOpen = false;
+  let infoSource: SourceEntry | null = null;
+  let restoring = false;
+
+  let savedZoom = readJSON<number | null>('mbview.zoom', null);
+  let savedCenter = readJSON<{ lat: number; lng: number } | null>('mbview.center', null);
+  let savedSlider = readJSON<number | null>('mbview.slider', null);
+
+  let unlisteners: UnlistenFn[] = [];
+
+  $: hasSources = mainSources.length > 0 || secondarySources.length > 0;
+  $: activeSources = activeKey === 'secondary' ? secondarySources : mainSources;
+  $: activeMap = activeKey === 'secondary' ? secondaryMap : mainMap;
+  $: tableFeatures = [...(mainFeatures ?? []), ...(secondaryFeatures ?? [])];
+
+  /* ---------------------------------------------------------------------- */
+  /* lifecycle                                                              */
+  /* ---------------------------------------------------------------------- */
+
   onMount(async () => {
-    // const styleSrc = await resolve(await resourceDir(), '../resources/styles/streets.json');
-    // console.log('test', styleSrc)
-    unlistener = await listen<{ path: string; json_url: string; key: string; source_id: string }>(
-      'mbtiles',
-      (event) => {
-        onMBTilesSet(event.payload);
-      }
-    );
-    unlistenMenu = await listen<{ message: string }>('menu', (event) => {
-      switch (event.payload.message) {
-        case 'open':
-          addMBTiles({ key: 'main' });
-          break;
-        case 'learn_more':
-          openURl(REPO_URL);
-          break;
-      }
-    });
-    unlistenerReload = await listen<{ message: string }>('reload-mbtiles', (event) => {
-      [mainMap, secondaryMap].forEach(reloadMap);
-    });
-
-    const currentFile = localStorage.getItem('currentMBtiles');
-    if (currentFile && currentFile !== 'undefined') {
-      setupMBtiles({ filePath: currentFile });
+    // wrapped so `vite dev` in a plain browser still renders the shell, which
+    // is the only practical way to work on the chrome without a full rebuild
+    try {
+      await listenToShell();
+    } catch (error) {
+      console.warn('running outside the app shell', error);
+      return;
     }
+    await restoreSession();
   });
 
-  function reloadMap(mapToRefresh) {
-    // `sourceCaches` was renamed to `tileManagers` in maplibre-gl 5
-    const tileCaches = mapToRefresh.style.tileManagers ?? mapToRefresh.style.sourceCaches;
-    Object.keys(tileCaches).forEach((s) => {
-      // Remove the tiles for a particular source
-      tileCaches[s].clearTiles();
-      // Load the new tiles for the current viewport (map.transform -> viewport)
-      tileCaches[s].update(mapToRefresh.transform);
-    });
-    // Force a repaint, so that the map will be repainted without you having to touch the map
-    mapToRefresh.triggerRepaint();
-  }
-  async function reloadMBtiles() {
-    let mainSourcesOld = mainSources.slice();
-    secondarySourcesToLoadOnMainMapLoad = secondarySources.map((s) => s.path);
-    savedZoom = mainMap.getZoom();
-    savedPosition = mainMap.getCenter();
-    if (compareMap) {
-      savedSplitPosition = compareMap['currentPosition'];
-    }
-    mainSourcesOld.forEach((source) => {
-      removeDataSource('main', source, true, false);
-    });
-    secondarySources.forEach((source) => {
-      removeDataSource('secondary', source, true, false);
-    });
-    mainSourcesOld.forEach((source) => {
-      setupMBtiles({ filePath: source.path });
-    });
-  }
-
-  let secondarySourcesToLoadOnMainMapLoad = localStorage.getItem('currentSecondaryMBtiles')
-    ? [localStorage.getItem('currentSecondaryMBtiles')]
-    : [];
-  let hasSources = false;
-  async function setupMBtiles({
-    filePath,
-    key = 'main',
-    source_type = undefined,
-    layer_type = undefined,
-  }) {
-    try {
-      const sources = key === 'secondary' ? secondarySources : mainSources;
-      console.log('setupMBtiles ', filePath, key);
-      if (sources.find((s) => s.path === filePath)) {
-        console.log('setupMBtiles source already loaded', filePath, key);
-        return;
-      }
-      await invoke('setup_mbtiles', {
-        key,
-        path: filePath,
-        sourceType: source_type,
-        layerType: layer_type,
-      });
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  function openInOSM() {
-    const zoom = mainMap.getZoom();
-    const center = mainMap.getCenter();
-    openURl(`https://www.openstreetmap.org/#map=${zoom + 2}/${center.lat}/${center.lng}`);
+  async function listenToShell() {
+    unlisteners.push(
+      await listen<MBTilesPayload>('mbtiles', (event) => onMBTilesSet(event.payload)),
+      await listen<{ message: string }>('menu', (event) => {
+        switch (event.payload.message) {
+          case 'open':
+            addMBTiles({ key: activeKey });
+            break;
+          case 'learn_more':
+            openUrl(REPO_URL);
+            break;
+        }
+      }),
+      // the backend watches the files and asks for a repaint when one changes
+      await listen<{ message: string }>('reload-mbtiles', () => {
+        [mainMap, secondaryMap].forEach(refreshTiles);
+      })
+    );
   }
 
   onDestroy(() => {
-    unlistener?.();
-    unlistenerReload?.();
-    unlistenMenu?.();
+    unlisteners.forEach((stop) => stop?.());
+    clearMaps();
   });
 
-  function brightColor(layerId, alpha?) {
-    let luminosity = 'bright';
-    let hue = null;
-
-    if (/water|ocean|lake|sea|river/.test(layerId)) {
-      hue = 'blue';
-    }
-
-    if (/state|country|place/.test(layerId)) {
-      hue = 'pink';
-    }
-
-    if (/road|highway|transport/.test(layerId)) {
-      hue = 'orange';
-    }
-
-    if (/contour|building/.test(layerId)) {
-      hue = 'monochrome';
-    }
-
-    if (/building/.test(layerId)) {
-      luminosity = basemap.indexOf('dark') !== -1 ? 'light' : 'dark';
-      hue = 'monochrome';
-    }
-
-    if (/contour|landuse/.test(layerId)) {
-      hue = 'yellow';
-    }
-
-    if (/wood|forest|park|landcover/.test(layerId)) {
-      hue = 'green';
-    }
-
-    const rgb = randomColor({
-      luminosity: luminosity,
-      hue: hue,
-      seed: layerId,
-      format: 'rgbArray',
-    });
-    const rgba = rgb.concat([alpha || 1]);
-    return 'rgba(' + rgba.join(', ') + ')';
-  }
-  function layerIdPrefix(sId, id: string) {
-    return `___${sId}___${id}`;
-  }
-  // `mvt` (Mapbox Vector Tile) or `mlt` (MapLibre Tile), as understood by the maplibre-gl
-  // `encoding` source property. The backend reports it in the tiles.json it serves.
-  function tileEncoding(sourceData): 'mvt' | 'mlt' {
-    return sourceData?.encoding === 'mlt' || sourceData?.format === 'mlt' ? 'mlt' : 'mvt';
-  }
-  function isVectorSource(sourceData) {
-    return !!(sourceData?.vector_layers || sourceData?.Layer);
-  }
-  function addPolygonLayer(map: Map, sId, id: string, layerColor, layers) {
-    let layerId = `${layerIdPrefix(sId, id)}-polygons`;
-
-    // mapLayers.push(layerId);
-    layers.polygons.push(layerId);
-    map.addLayer({
-      id: layerId,
-      type: 'fill',
-      source: sId,
-      'source-layer': id,
-      filter: ['==', '$type', 'Polygon'],
-      layout: {},
-      paint: {
-        'fill-opacity': 0.1,
-        'fill-color': layerColor,
-      },
-    });
-    layerId = layerId + '-outline';
-    layers.polygons.push(layerId);
-    // mapLayers.push(layerId);
-    map.addLayer({
-      id: layerId,
-      type: 'line',
-      source: sId,
-      'source-layer': id,
-      filter: ['==', '$type', 'Polygon'],
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round',
-      },
-      paint: {
-        'line-color': layerColor,
-        'line-width': 1,
-        'line-opacity': 0.75,
-      },
-    });
-  }
-  function addPointLayer(map: Map, sId, id: string, layerColor, layers) {
-    let layerId = `${layerIdPrefix(sId, id)}-points`;
-    // mapLayers.push(layerId);
-    layers.points.push(layerId);
-    map.addLayer({
-      id: layerId,
-      type: 'circle',
-      source: sId,
-      'source-layer': id,
-      filter: ['==', '$type', 'Point'],
-      paint: {
-        'circle-color': layerColor,
-        'circle-radius': 2.5,
-        'circle-opacity': 0.75,
-      },
-    });
-  }
-  function addLineLayer(map: Map, sId, id: string, layerColor, layers) {
-    let layerId = `${layerIdPrefix(sId, id)}-lines`;
-    // mapLayers.push(layerId);
-    layers.lines.push(layerId);
-    map.addLayer({
-      id: layerId,
-      type: 'line',
-      source: sId,
-      'source-layer': id,
-
-      filter: ['==', '$type', 'LineString'],
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round',
-      },
-      paint: {
-        'line-color': layerColor,
-        'line-width': 1,
-        'line-opacity': 0.75,
-      },
-    });
-  }
-
-  async function removeDataSource(key, source, clearIfEmpty = true, canRemoveFromStorage = true) {
-    // console.log('removeDataSource', key, source, clearIfEmpty);
-    const resultMap = key === 'main' ? mainMap : secondaryMap;
-    const layers = source.layers;
-    const layerIds =
-      resultMap &&
-      resultMap.style &&
-      resultMap.style._layers &&
-      Object.keys(resultMap.style._layers).filter(
-        (s) => s.startsWith(`___${source.id}`) || s === `${source.id}-layer`
-      );
-    layerIds &&
-      layerIds.forEach((s) => {
-        resultMap && resultMap.removeLayer(s);
-        delete layers[s];
-      });
-    resultMap && resultMap.style && resultMap.removeSource(source.id);
-    if (key === 'main') {
-      const index = mainSources.findIndex((s) => s.id === source.id);
-      if (index !== -1) {
-        mainSources.splice(index, 1);
-        mainSources = mainSources;
-      }
-      updateMainSourcesCount(clearIfEmpty);
-    } else {
-      const index = secondarySources.findIndex((s) => s.id === source.id);
-      if (index !== -1) {
-        secondarySources.splice(index, 1);
-        secondarySources = secondarySources;
-        if (secondarySources.length === 0 && clearIfEmpty) {
-          clearSecondaryMap(canRemoveFromStorage);
-        }
-      }
-    }
-  }
-  function updateMainSourcesCount(clearIfEmpty = true) {
-    // console.log('updateMainSourcesCount', clearIfEmpty);
-    hasSources = mainSources.length > 0;
-    if (hasSources) {
-      localStorage.setItem('currentMBtiles', mainSources[0].path);
-    }
-    if (secondarySources.length) {
-      localStorage.setItem('currentSecondaryMBtiles', secondarySources[0].path);
-    }
-    if (!hasSources && clearIfEmpty) {
-      clearMaps();
-    }
-  }
-
-  async function addRasterMBtiles(
-    resultMap: Map,
-    { key, path, json_url, source_id, source_type, layer_type },
-    sourceData,
-    createSourceLayer = true
-  ) {
-    if (!sourceData) {
-      sourceData = await (await fetch(json_url)).json();
-    }
-    sourceData.path = path;
-
-    function onMapLoaded() {
-      if (createSourceLayer) {
-        // console.log('addRasterMBtiles', path, json_url, source_id, key, source_type, layer_type);
-        resultMap.addSource(sourceData.id, {
-          type: source_type || 'raster',
-          tiles: sourceData.tiles,
-
-          minzoom: sourceData.minzoom,
-          maxzoom: sourceData.maxzoom,
-          attribution: sourceData.attribution || '',
-        });
-        resultMap.addLayer({
-          id: sourceData.id + '-layer',
-          type: layer_type || 'raster',
-          source: sourceData.id,
-          minzoom: 0,
-          maxzoom: 24,
-        });
-      }
-      sourceData.layers = {
-        rasters: [sourceData.id + '-layer'],
-      };
-      if (key === 'main') {
-        mainSources.push(sourceData);
-        mainSources = mainSources;
-      } else {
-        secondarySources.push(sourceData);
-        secondarySources = secondarySources;
-      }
-      updateMainSourcesCount();
-    }
-    if (resultMap.loaded()) {
-      onMapLoaded();
-    } else {
-      resultMap.once('load', onMapLoaded);
-    }
-  }
-  async function addVectorMBtiles(resultMap: Map, { key, path, json_url, source_id }, vectorData) {
-    // console.log(
-    //   'addVectorMBtiles',
-    //   key,
-    //   path,
-    //   json_url,
-    //   !!resultMap,
-    //   resultMap && resultMap.loaded()
-    // );
-    if (!vectorData) {
-      vectorData = await (await fetch(json_url)).json();
-    }
-    vectorData.path = path;
-
-    function onMapLoaded() {
-      console.log('addVectorMBtiles onMapLoaded', key, path, json_url);
-      // resultMap.addSource('osm', {
-      //   type: 'raster',
-      //   tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      //   tileSize: 256,
-      //   maxzoom: 19,
-      //   attribution: '&copy; OpenStreetMap Contributors',
-      // });
-      // resultMap.addLayer({
-      //   id: 'osm',
-      //   type: 'raster',
-      //   source: 'osm',
-      // });
-      const sId = vectorData.id;
-      resultMap.addSource(sId, {
-        type: 'vector',
-        url: json_url,
-        encoding: tileEncoding(vectorData),
-      });
-      const layers = (vectorData.layers = {
-        points: [],
-        rasters: [],
-        lines: [],
-        polygons: [],
-        colors: {},
-      });
-      (vectorData.vector_layers || vectorData.Layer).forEach((l) => {
-        const layerColor = brightColor(l.id);
-        layers.colors[l.id] = layerColor;
-        addPolygonLayer(resultMap, sId, l.id, layerColor, layers);
-        addLineLayer(resultMap, sId, l.id, layerColor, layers);
-        addPointLayer(resultMap, sId, l.id, layerColor, layers);
-      });
-
-      if (key === 'main') {
-        mainSources.push(vectorData);
-        mainSources = mainSources;
-        secondarySourcesToLoadOnMainMapLoad.forEach((s) =>
-          setupMBtiles({ filePath: s, key: 'secondary' })
-        );
-      } else {
-        secondarySources.push(vectorData);
-        secondarySources = secondarySources;
-      }
-      updateMainSourcesCount();
-    }
-    if (resultMap.loaded()) {
-      onMapLoaded();
-    } else {
-      resultMap.once('load', onMapLoaded);
-    }
-  }
-
-  async function createMap({ key, path, json_url, source_id, source_type, layer_type }) {
-    let containerKey = key;
-    let resultMap: Map;
-    let sourceData = await (await fetch(json_url)).json();
-    let center;
-    let zoom;
-
-    if (key === 'main') {
-
-      zoom = savedZoom
-        ? savedZoom
-        : sourceData.minzoom + (sourceData.maxzoom - sourceData.minzoom) / 2;
-      center = savedPosition
-        ? savedPosition
-        : sourceData.center ?? sourceData.bounds
-        ? [
-            sourceData.bounds[0] + (sourceData.bounds[2] - sourceData.bounds[0]) / 2,
-            sourceData.bounds[3] + (sourceData.bounds[1] - sourceData.bounds[3]) / 2,
-          ]
-        : undefined;
-    } else {
-      zoom = mainMap.getZoom();
-      center = mainMap.getCenter();
-    }
-    if (isVectorSource(sourceData)) {
-      const styleSrc = await resolve(await resourceDir(), `_up_/resources/styles/${basemap}.json`);
-      const styleStr: string = await readTextFile(styleSrc);
-      const style = JSON.parse(styleStr.replace('{{json_url}}', json_url));
-      // the basemap style reuses the mbtiles we just opened, so it needs the same tile encoding
-      Object.values(style.sources ?? {}).forEach((s: any) => {
-        if (s.type === 'vector' && s.url === json_url) {
-          s.encoding = tileEncoding(sourceData);
-        }
-      });
-      const showBackground =
-        key === 'main' ? mainShowBackgroundLayer : secondaryShowBackgroundLayer;
-      style.layers.forEach((l) => {
-        l.layout = l.layout || {};
-        l.layout.visibility = showBackground ? 'visible' : 'none';
-      });
-      resultMap = new Map({
-        container: containerKey,
-        style,
-        center,
-        zoom,
-        interactive: true,
-      });
-      resultMap.showTileBoundaries = wantTileBounds;
-
-      addVectorMBtiles(resultMap, { key, path, json_url, source_id }, sourceData);
-    } else {
-      resultMap = new Map({
-        container: containerKey,
-        style: {
-          version: 8,
-          sources: {
-            [sourceData.id]: {
-              type: 'raster',
-              tiles: sourceData.tiles,
-
-              minzoom: sourceData.minzoom,
-              maxzoom: sourceData.maxzoom,
-              attribution: sourceData.attribution || '',
-            },
-          },
-          layers: [
-            {
-              id: sourceData.id + '-layer',
-              type: 'raster',
-              source: sourceData.id,
-              minzoom: 0,
-              maxzoom: 24,
-            } as any,
-          ],
-        },
-        center,
-        zoom,
-        interactive: true,
-      });
-      addRasterMBtiles(
-        resultMap,
-        { key, path, json_url, source_id, source_type, layer_type },
-        sourceData,
-        false
-      );
-    }
-
-    // if (key === 'main') {
-    resultMap.addControl(new ScaleControl({}), 'top-right');
-    // resultMap.addControl(new RulerControl(), 'top-right');
-    resultMap.addControl(new CompassControl(), 'top-right');
-    resultMap.addControl(new ZoomControl(), 'top-right');
-    // }
-    return resultMap;
-  }
-
-  function clearMaps() {
-    // console.log('clearMaps');
-    try {
-      if (mainMap) {
-        mainMap.remove();
-        mainMap = null;
-      }
-      if (secondaryMap) {
-        clearSecondaryMap();
-      }
-      if (compareMap) {
-        compareMap.remove();
-        compareMap = null;
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-  function clearSecondaryMap(canRemoveFromStorage = true) {
-    // console.log('clearSecondaryMap', canRemoveFromStorage);
-    if (secondaryMap) {
-      try {
-        secondaryMap.remove();
-      } catch (err) {
-        console.error(err);
-      }
-      secondaryMap = null;
-      secondaryFeatures = [];
-      secondarySources = [];
-      if (compareMap) {
-        compareMap.remove();
-        compareMap = null;
-      }
-      secondarySplit.setPercent(100);
-      canRemoveFromStorage && localStorage.removeItem('currentSecondaryMBtiles');
-    } else {
-      addMBTiles({ key: 'secondary' });
-    }
-  }
-
-  async function onMBTilesSet({
-    path,
-    json_url,
-    source_id,
-    source_type,
-    layer_type,
-    key,
-  }: {
+  interface MBTilesPayload {
     path: string;
     json_url: string;
-    key: string;
+    key: MapKey;
     source_id: string;
     source_type?: string;
     layer_type?: string;
-  }) {
-    console.log(
-      'onMBTilesSet',
-      path,
-      json_url,
-      source_id,
-      key,
-      source_type,
-      layer_type,
-      hasSources,
-      !!mainMap,
-      !!secondaryMap,
-      !!compareMap
-    );
-    // if (key === 'main') {
-    //   clearMainMap();
-    // }
-    // clearSecondaryMap();
-    // if (compareMap) {
-    //   compareMap.remove();
-    //   compareMap = null;
-    // }
-    if (path) {
-      const sources = key === 'secondary' ? secondarySources : mainSources;
-      if (sources.find((s) => s.path === path)) {
-        console.log('setupMBtiles source already loaded', path, key);
-        return;
-      }
-      if (key === 'main') {
-        if (!mainMap) {
-          mainMap = await createMap({ key, path, json_url, source_id, source_type, layer_type });
-          mainMap.on('idle', e=> {
-            console.log('idle', e)
-          })
-          mainMap.on('moveend', e=> {
-            localStorage.setItem('lastZoom', mainMap.getZoom() + '')
-            localStorage.setItem('lastPosition', JSON.stringify(mainMap.getCenter()))
-            console.log('moveend', e)
-          })
-        } else {
-          let sourceData = await (await fetch(json_url)).json();
+  }
 
-          if (isVectorSource(sourceData)) {
-            addVectorMBtiles(mainMap, { key, path, json_url, source_id }, sourceData);
-          } else {
-            addRasterMBtiles(
-              mainMap,
-              { key, path, json_url, source_id, source_type, layer_type },
-              sourceData
-            );
-          }
-        }
-      } else if (key === 'secondary') {
-        if (secondaryMap) {
-          let sourceData = await (await fetch(json_url)).json();
-          if (isVectorSource(sourceData)) {
-            addVectorMBtiles(secondaryMap, { key, path, json_url, source_id }, sourceData);
-          } else {
-            addRasterMBtiles(
-              secondaryMap,
-              { key, path, json_url, source_id, source_type, layer_type },
-              sourceData
-            );
-          }
-        } else {
-          secondaryMap = await createMap({
-            key,
-            path,
-            json_url,
-            source_id,
-            source_type,
-            layer_type,
-          });
-          mainPopupOnClick = true;
-          secondaryPopupOnClick = true;
-          if (compareMap) {
-            compareMap.remove();
-          }
-          compareMap = new Compare(mainMap, secondaryMap, '#comparison-container', {
-            // mousemove: true, // Optional. Set to true to enable swiping during cursor movement.
-            // orientation: 'horizontal', // Optional. Sets the orientation of swiper to horizontal or vertical, defaults to vertical
-          });
-          compareMap.setSlider(savedSplitPosition ? savedSplitPosition : 500);
-        }
-      }
+  /** Everything currently open, so the next launch comes back the same. */
+  function persistSession() {
+    if (restoring) return;
+    writeJSON('mbview.open', {
+      main: mainSources.map((source) => source.path),
+      secondary: secondarySources.map((source) => source.path),
+    });
+  }
+
+  async function restoreSession() {
+    const stored = readJSON<{ main: string[]; secondary: string[] }>('mbview.open', {
+      main: [],
+      secondary: [],
+    });
+    // migration from the single-file keys this app used to write
+    const legacyMain = localStorage.getItem('currentMBtiles');
+    const main = stored.main?.length ? stored.main : legacyMain ? [legacyMain] : [];
+    const secondary = stored.secondary ?? [];
+    if (!main.length && !secondary.length) return;
+
+    restoring = true;
+    try {
+      // Sequential, and bottom-up: each source is added on top of the stack, so
+      // replaying the saved top-first list in reverse rebuilds the same order.
+      // Concurrent setups would race, since the backend answers on an event.
+      for (const path of main.slice().reverse()) await setupMBtiles({ path, key: 'main' });
+      for (const path of secondary.slice().reverse())
+        await setupMBtiles({ path, key: 'secondary' });
+    } finally {
+      restoring = false;
+      persistSession();
     }
   }
 
-  let lastFolder: string = localStorage.getItem('lastOpenFolder');
-  async function addMBTiles({ key, source_type = undefined, layer_type = undefined }) {
+  /* ---------------------------------------------------------------------- */
+  /* opening files                                                          */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Resolves once the source that `setup_mbtiles` announces has been added.
+   * A plain record rather than a `Map`, whose name maplibre has taken here.
+   */
+  const pending: Record<string, () => void> = {};
+
+  async function setupMBtiles({
+    path,
+    key = 'main',
+    sourceType,
+    layerType,
+  }: {
+    path: string;
+    key?: MapKey;
+    sourceType?: string;
+    layerType?: string;
+  }) {
+    const sources = key === 'secondary' ? secondarySources : mainSources;
+    if (sources.some((source) => source.path === path)) return;
+
+    const token = `${key}:${path}`;
+    const done = new Promise<void>((resolveDone) => {
+      pending[token] = resolveDone;
+      // never leave the restore loop hanging on a file the backend rejected
+      setTimeout(() => {
+        if (pending[token]) {
+          delete pending[token];
+          resolveDone();
+        }
+      }, 10000);
+    });
+
     try {
-      console.log('addMBTiles', key, source_type, layer_type);
-      // since plugin-dialog v2 `open()` resolves to the path itself, not `{ path, name }`
-      const resPath = await open({
-        filters: [],
-        multiple: false,
-        directory: false,
-        defaultPath: lastFolder,
-      });
-      if (resPath) {
-        setupMBtiles({ filePath: resPath, key, source_type, layer_type });
-        lastFolder = await dirname(resPath);
-        localStorage.setItem('lastOpenFolder', lastFolder);
-      }
+      await invoke('setup_mbtiles', { key, path, sourceType, layerType });
+    } catch (error) {
+      console.error('setup_mbtiles failed', path, error);
+      delete pending[token];
+      return;
+    }
+    await done;
+  }
+
+  let lastFolder: string = localStorage.getItem('lastOpenFolder');
+
+  async function addMBTiles({
+    key = 'main',
+    sourceType,
+    layerType,
+    path,
+  }: {
+    key?: MapKey;
+    sourceType?: string;
+    layerType?: string;
+    path?: string;
+  }) {
+    try {
+      const chosen =
+        path ??
+        (await open({ multiple: false, directory: false, defaultPath: lastFolder }));
+      if (!chosen || typeof chosen !== 'string') return;
+      await setupMBtiles({ path: chosen, key, sourceType, layerType });
+      rememberRecent(chosen);
+      lastFolder = await dirname(chosen);
+      localStorage.setItem('lastOpenFolder', lastFolder);
     } catch (error) {
       console.error(error);
     }
   }
 
-  function handleDroppedFile(paths: string[]) {
-    // ...
-    setupMBtiles({ filePath: paths[0] });
+  async function onMBTilesSet(payload: MBTilesPayload) {
+    const { path, json_url, key, source_type, layer_type } = payload;
+    const token = `${key}:${path}`;
+    const resolveDone = pending[token];
+    try {
+      if (!path || !json_url) return;
+      const sources = key === 'secondary' ? secondarySources : mainSources;
+      if (sources.some((source) => source.path === path)) return;
+
+      const data = await (await fetch(json_url)).json();
+      const source = makeSource(
+        { path, sourceType: source_type, layerType: layer_type },
+        data,
+        $resolvedTheme === 'dark'
+      );
+
+      if (key === 'secondary') {
+        if (!mainMap) return; // B only exists next to A
+        if (!secondaryMap) {
+          secondaryMap = await createMap('secondary', source, json_url);
+          await startCompare();
+        }
+        await attachSource(secondaryMap, source, json_url);
+        secondarySources = [source, ...secondarySources];
+      } else {
+        const first = !mainMap;
+        if (first) {
+          mainMap = await createMap('main', source, json_url);
+          watchCamera(mainMap);
+        }
+        await attachSource(mainMap, source, json_url);
+        mainSources = [source, ...mainSources];
+        if (first && !savedCenter) fitTo(source);
+      }
+      persistSession();
+    } catch (error) {
+      console.error('onMBTilesSet failed', payload, error);
+    } finally {
+      if (resolveDone) {
+        delete pending[token];
+        resolveDone();
+      }
+    }
   }
 
-  let theme: CarbonTheme = 'g90';
+  function whenReady(map: Map): Promise<void> {
+    return map.isStyleLoaded() ? Promise.resolve() : new Promise((done) => map.once('load', () => done()));
+  }
 
-  let bottomPanelPercent = 75;
-  function onBottomSplitChanged(e) {
-    if (showBottomPanel) {
-      bottomPanelPercent = e.detail.percent;
-    }
-    mainMap?.resize();
-    secondaryMap?.resize();
+  async function attachSource(map: Map, source: SourceEntry, jsonUrl: string) {
+    await whenReady(map);
+    if (map.getSource(source.id)) return;
+    addSourceToMap(map, source, jsonUrl);
+    applyVisibility(map, source, $settings.geometryFilter);
+    applyOpacity(map, source);
+    // a source added later belongs on top, which is where the panel shows it
+    applyOrder(map, [source, ...(map === secondaryMap ? secondarySources : mainSources)]);
   }
-  function switchBottomPanel() {
-    showBottomPanel = !showBottomPanel;
-    if (showBottomPanel) {
-      bottomSplit.setPercent(bottomPanelPercent);
-    } else {
-      bottomSplit.setPercent(100);
+
+  /* ---------------------------------------------------------------------- */
+  /* maps                                                                   */
+  /* ---------------------------------------------------------------------- */
+
+  function backdropColor(theme: string) {
+    return theme === 'dark' ? '#141416' : '#f7f7f9';
+  }
+
+  function blankStyle() {
+    return {
+      version: 8 as const,
+      sources: {},
+      layers: [
+        {
+          // named as one of ours so the "show basemap" toggle leaves it alone:
+          // with no basemap this is the backdrop, not something to hide
+          id: '___backdrop',
+          type: 'background' as const,
+          paint: { 'background-color': backdropColor($resolvedTheme) },
+        },
+      ],
+    };
+  }
+
+  /**
+   * The preview basemaps double as the thing being previewed: `basic` and
+   * `terrain` point their vector source at whatever file is open. That only
+   * works for a vector file, so a raster one falls back to a plain backdrop
+   * rather than a style whose every layer would fail to load.
+   */
+  async function buildStyle(source: SourceEntry, jsonUrl: string) {
+    if ($settings.basemap === 'none') return blankStyle();
+    try {
+      const path = await resolve(await resourceDir(), `_up_/resources/styles/${$settings.basemap}.json`);
+      const raw = await readTextFile(path);
+      const needsOurTiles = raw.includes('{{json_url}}') || raw.includes('mbtiles://');
+      if (needsOurTiles && !source.vector) return blankStyle();
+
+      const style = JSON.parse(raw.split('{{json_url}}').join(jsonUrl));
+      Object.values(style.sources ?? {}).forEach((entry: any) => {
+        if (entry?.type === 'vector' && (entry.url === jsonUrl || String(entry.url).startsWith('mbtiles://'))) {
+          entry.url = jsonUrl;
+          entry.encoding = source.encoding;
+        }
+      });
+      (style.layers ?? []).forEach((layer: any) => {
+        layer.layout = layer.layout || {};
+        layer.layout.visibility = $settings.showBackground ? 'visible' : 'none';
+      });
+      return style;
+    } catch (error) {
+      console.error('basemap style unavailable, falling back to a blank one', error);
+      return blankStyle();
     }
   }
-  function switchCompareView() {
+
+  async function createMap(key: MapKey, source: SourceEntry, jsonUrl: string) {
+    const style = await buildStyle(source, jsonUrl);
+    const center =
+      key === 'main'
+        ? savedCenter ?? centerOf(source)
+        : mainMap.getCenter();
+    const zoom =
+      key === 'main'
+        ? savedZoom ?? (source.minzoom ?? 0) + (((source.maxzoom ?? 14) - (source.minzoom ?? 0)) / 2)
+        : mainMap.getZoom();
+
+    const map = new Map({
+      container: key,
+      style: style as any,
+      center: center as any,
+      zoom,
+      interactive: true,
+      attributionControl: { compact: true },
+    });
+    map.showTileBoundaries = $settings.showTileBoundaries;
+    map.showCollisionBoxes = $settings.showCollisionBoxes;
+    // maplibre's own controls, so they inherit the same stylesheet the rest of
+    // the map chrome does instead of arriving unstyled from a mapbox plugin
+    map.addControl(
+      new NavigationControl({ showCompass: true, showZoom: true, visualizePitch: true }),
+      'top-right'
+    );
+    map.addControl(new ScaleControl({ maxWidth: 100, unit: 'metric' }), 'top-right');
+    await whenReady(map);
+    return map;
+  }
+
+  function centerOf(source: SourceEntry) {
+    if (source.center?.length >= 2) return [source.center[0], source.center[1]];
+    const bounds = boundsOf(source);
+    if (!bounds) return [0, 0];
+    return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+  }
+
+  function watchCamera(map: Map) {
+    map.on('moveend', () => {
+      savedZoom = map.getZoom();
+      savedCenter = map.getCenter();
+      writeJSON('mbview.zoom', savedZoom);
+      writeJSON('mbview.center', { lat: savedCenter.lat, lng: savedCenter.lng });
+    });
+  }
+
+  function refreshTiles(map: Map) {
+    if (!map?.style) return;
+    // `sourceCaches` was renamed to `tileManagers` in maplibre-gl 5
+    const caches = (map.style as any).tileManagers ?? (map.style as any).sourceCaches;
+    Object.keys(caches ?? {}).forEach((id) => {
+      caches[id].clearTiles();
+      caches[id].update((map as any).transform);
+    });
+    map.triggerRepaint();
+  }
+
+  async function startCompare() {
+    if (!mainMap || !secondaryMap) return;
+    if (compareMap) compareMap.remove();
+    await tick();
+    compareMap = new Compare(mainMap, secondaryMap, '#comparison-container', {});
+    compareMap.setSlider(savedSlider ?? (mainMapDiv?.clientWidth || 800) / 2);
+    guardSwiperDrag();
+  }
+
+  /**
+   * The compare plugin binds its own `mousedown` and never calls
+   * preventDefault, so a drag also starts a text selection and smears it
+   * across every popup and control the pointer crosses. Ours runs alongside
+   * — preventDefault does not stop the plugin's handler from firing — and
+   * suppresses selection for the length of the drag only, so popup text is
+   * still selectable the rest of the time.
+   */
+  function guardSwiperDrag() {
+    const swiper = document.querySelector(
+      '#comparison-container .compare-swiper-vertical, #comparison-container .compare-swiper-horizontal'
+    );
+    if (!swiper) return;
+
+    const stop = () => {
+      document.body.classList.remove('swiping');
+      document.removeEventListener('mouseup', stop);
+      document.removeEventListener('touchend', stop);
+      document.removeEventListener('touchcancel', stop);
+    };
+
+    swiper.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      document.body.classList.add('swiping');
+      document.addEventListener('mouseup', stop);
+    });
+    // touch never starts a selection on its own, but a long drag can still
+    // raise the selection handles on mobile webviews
+    swiper.addEventListener('touchstart', () => {
+      document.body.classList.add('swiping');
+      document.addEventListener('touchend', stop);
+      document.addEventListener('touchcancel', stop);
+    });
+  }
+
+  function clearMaps() {
+    // the swiper is about to be torn out from under a drag that may be live
+    document.body.classList.remove('swiping');
+    try {
+      compareMap?.remove();
+    } catch (error) {
+      /* already gone */
+    }
+    compareMap = null;
+    try {
+      secondaryMap?.remove();
+    } catch (error) {
+      /* already gone */
+    }
+    secondaryMap = null;
+    try {
+      mainMap?.remove();
+    } catch (error) {
+      /* already gone */
+    }
+    mainMap = null;
+    mainFeatures = [];
+    secondaryFeatures = [];
+  }
+
+  function closeCompare() {
+    document.body.classList.remove('swiping');
     if (compareMap) {
-      clearSecondaryMap();
-    } else {
+      savedSlider = (compareMap as any).currentPosition ?? savedSlider;
+      writeJSON('mbview.slider', savedSlider);
+      compareMap.remove();
+      compareMap = null;
+    }
+    secondaryMap?.remove();
+    secondaryMap = null;
+    secondarySources = [];
+    secondaryFeatures = [];
+    if (activeKey === 'secondary') activeKey = 'main';
+    persistSession();
+  }
+
+  function toggleCompare() {
+    if (secondaryMap) {
+      closeCompare();
+    } else if (mainMap) {
       addMBTiles({ key: 'secondary' });
     }
   }
 
-  let selectedFeaturesHeaders;
-  let selectedFeaturesData;
+  /* ---------------------------------------------------------------------- */
+  /* source operations                                                      */
+  /* ---------------------------------------------------------------------- */
 
-  function handleSelectedFeatures(features) {
-    if (features?.length > 0) {
-      // selectedFeaturesData = [];
-      let headers = [];
-      let data = [];
-      selectedFeaturesHeaders = [
-        {
-          key: 'layer',
-          value: 'layer',
-        },
-        {
-          key: '$type',
-          value: '$type',
-        },
-        {
-          key: '$id',
-          value: '$id',
-        },
-      ];
-      let seenKeys = headers.map((h) => h.key);
-      let seenFeatures = [];
-      features.forEach((f) => {
-        Object.keys(f.properties).forEach((k) => {
-          if (seenKeys.indexOf(k) === -1) {
-            seenKeys.push(k);
-            headers.push({ key: k, value: k });
-          }
-        });
-        if (seenFeatures.indexOf(f.id) === -1) {
-          seenFeatures.push(f.id);
-          data.push({
-            id: f.id,
-            // layer: f.sourceLayer,
-            $type: f.geometry.type,
-            $id: f.id,
-            ...f.properties,
-            data: f,
+  function mapFor(key: MapKey) {
+    return key === 'secondary' ? secondaryMap : mainMap;
+  }
+
+  function removeSource(key: MapKey, source: SourceEntry) {
+    const map = mapFor(key);
+    if (map) removeSourceFromMap(map, source);
+    if (key === 'secondary') {
+      secondarySources = secondarySources.filter((entry) => entry.id !== source.id);
+      if (secondarySources.length === 0) closeCompare();
+    } else {
+      mainSources = mainSources.filter((entry) => entry.id !== source.id);
+      if (mainSources.length === 0) {
+        // nothing left to compare against either
+        closeCompare();
+        mainMap?.remove();
+        mainMap = null;
+        mainFeatures = [];
+      }
+    }
+    persistSession();
+  }
+
+  async function reloadSource(key: MapKey, source: SourceEntry) {
+    const map = mapFor(key);
+    if (!map) return;
+    try {
+      await invoke('reload_mbtiles', { path: source.path });
+    } catch (error) {
+      console.error(error);
+    }
+    refreshTiles(map);
+  }
+
+  /** Re-open every file from scratch, keeping order, camera and split. */
+  async function reloadAll() {
+    const mainPaths = mainSources.map((source) => source.path);
+    const secondaryPaths = secondarySources.map((source) => source.path);
+    if (compareMap) savedSlider = (compareMap as any).currentPosition ?? savedSlider;
+    if (mainMap) {
+      savedZoom = mainMap.getZoom();
+      savedCenter = mainMap.getCenter();
+    }
+    restoring = true;
+    clearMaps();
+    mainSources = [];
+    secondarySources = [];
+    await tick();
+    try {
+      for (const path of mainPaths.slice().reverse()) await setupMBtiles({ path, key: 'main' });
+      for (const path of secondaryPaths.slice().reverse())
+        await setupMBtiles({ path, key: 'secondary' });
+    } finally {
+      restoring = false;
+      persistSession();
+    }
+  }
+
+  function fitTo(source: SourceEntry) {
+    const bounds = boundsOf(source);
+    const map = mapFor(activeKey) ?? mainMap;
+    if (!map) return;
+    if (bounds) {
+      map.fitBounds(bounds as any, { padding: 40, duration: 400 });
+    } else if (source.center?.length >= 2) {
+      map.flyTo({ center: [source.center[0], source.center[1]], zoom: source.center[2] ?? 10 });
+    }
+  }
+
+  function onReorder(key: MapKey) {
+    const map = mapFor(key);
+    if (map) applyOrder(map, key === 'secondary' ? secondarySources : mainSources);
+    persistSession();
+  }
+
+  function copy(text: string) {
+    writeText(text).catch((error) => console.error(error));
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* settings that reach into the maps                                      */
+  /* ---------------------------------------------------------------------- */
+
+  $: [mainMap, secondaryMap].forEach((map) => {
+    if (map) map.showTileBoundaries = $settings.showTileBoundaries;
+  });
+  $: [mainMap, secondaryMap].forEach((map) => {
+    if (map) map.showCollisionBoxes = $settings.showCollisionBoxes;
+  });
+  $: {
+    const on = $settings.showBackground;
+    [mainMap, secondaryMap].forEach((map) => map && applyBackground(map, on));
+  }
+  $: {
+    // with no basemap the backdrop is ours to keep in step with the theme,
+    // and repainting it beats rebuilding the whole style for a colour
+    const color = backdropColor($resolvedTheme);
+    [mainMap, secondaryMap].forEach((map) => {
+      if (map?.getLayer('___backdrop')) {
+        map.setPaintProperty('___backdrop', 'background-color', color);
+      }
+    });
+  }
+  $: {
+    const filter = $settings.geometryFilter;
+    if (mainMap) mainSources.forEach((source) => applyVisibility(mainMap, source, filter));
+    if (secondaryMap) secondarySources.forEach((source) => applyVisibility(secondaryMap, source, filter));
+  }
+
+  async function changeBasemap(name: string) {
+    if (name === $settings.basemap) return;
+    settings.update((current) => ({ ...current, basemap: name }));
+    await reloadAll();
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* tile dump                                                              */
+  /* ---------------------------------------------------------------------- */
+
+  function dumpGeometry(rings: any[]) {
+    return rings.map((ring: any[]) =>
+      ring.reduce((acc: number[], { x, y }: any) => {
+        acc.push(x, y);
+        return acc;
+      }, [])
+    );
+  }
+
+  function dumpMVT(buffer: ArrayBuffer) {
+    const tile = new VectorTile(new Pbf(buffer));
+    return {
+      layers: Object.values(tile.layers).map((vl: any) => {
+        const { version, name, extent, length } = vl;
+        const features = [];
+        for (let index = 0; index < length; index++) {
+          const feature = vl.feature(index);
+          features.push({
+            type: feature.type,
+            extent: feature.extent,
+            id: feature.id,
+            properties: feature.properties,
+            geometry: dumpGeometry(feature.loadGeometry()),
           });
         }
-        selectedFeaturesHeaders = headers.sort((a, b) => {
-          let fa = a.key.toLowerCase(),
-            fb = b.key.toLowerCase();
-
-          if (fa < fb) {
-            return -1;
-          }
-          if (fa > fb) {
-            return 1;
-          }
-          return 0;
-        });
-        selectedFeaturesData = data.sort((a, b) => {
-          if (a.osmid) return a.osmid - b.osmid;
-          else return a.$id - b.$id;
-        });
-      });
-    }
-  }
-  $: handleSelectedFeatures(mainFeatures);
-  $: handleSelectedFeatures(secondaryFeatures);
-  $: {
-    if (theme === 'g10' || theme === 'white') {
-      document.body.classList.remove('dark');
-      document.body.classList.add('light');
-    } else {
-      document.body.classList.remove('light');
-      document.body.classList.add('dark');
-    }
+        return { version, name, extent, features };
+      }),
+    };
   }
 
-  function dumpTile({ layers }) {
-    let tile: any = {};
-    tile.layers = Object.values(layers).map(dumpLayer);
-    return tile;
-  }
-
-  function dumpLayer(vl) {
-    let { version, name, extent, length } = vl;
-    let layer = { version, name, extent, features: [] };
-    for (let i = 0; i < length; i++) {
-      layer.features.push(dumpFeature(vl.feature(i)));
-    }
-    return layer;
-  }
-
-  function dumpFeature(vf) {
-    let { type, extent, id, properties } = vf;
-    let geometry = dumpGeometry(vf.loadGeometry());
-    return { type, extent, id, properties, geometry };
-  }
-
-  function dumpGeometry(vg) {
-    function convertRing(ring) {
-      return ring.reduce(function (r, { x, y }) {
-        r.push(x, y);
-        return r;
-      }, []);
-    }
-    return vg.map(convertRing);
-  }
-
-  // MLT has no `VectorTile` equivalent: the decoder hands back one FeatureTable per layer,
-  // holding columnar vectors. `type` is a GEOMETRY_TYPE (0..5), not an MVT geometry type.
-  function dumpMLTTile(buffer: ArrayBuffer) {
-    const featureTables = decodeMLTTile(new Uint8Array(buffer));
+  // MLT has no `VectorTile` equivalent: the decoder hands back one FeatureTable
+  // per layer, holding columnar vectors.
+  function dumpMLT(buffer: ArrayBuffer) {
     return {
-      layers: featureTables.map((ft) => ({
-        name: ft.name,
-        extent: ft.extent,
-        features: ft.getFeatures().map((f) => ({
-          type: f.geometry.type,
-          extent: ft.extent,
-          // ids beyond 2^53 are decoded as BigInt, which JSON.stringify refuses to serialize
-          id: typeof f.id === 'bigint' ? f.id.toString() : f.id,
-          properties: f.properties,
-          geometry: dumpGeometry(f.geometry.coordinates),
+      layers: decodeMLTTile(new Uint8Array(buffer)).map((table: any) => ({
+        name: table.name,
+        extent: table.extent,
+        features: table.getFeatures().map((feature: any) => ({
+          type: feature.geometry.type,
+          extent: table.extent,
+          // ids beyond 2^53 decode as BigInt, which JSON.stringify refuses
+          id: typeof feature.id === 'bigint' ? feature.id.toString() : feature.id,
+          properties: feature.properties,
+          geometry: dumpGeometry(feature.geometry.coordinates),
         })),
       })),
     };
   }
-  async function copyTileAsGeoJSON(key, event) {
-    try {
-      const map = key === 'secondary' ? secondaryMap : mainMap;
-      const mapEvent = new MapMouseEvent(event.type, map, event.detail);
-      const lngLat = mapEvent.lngLat;
-      const tile = pointToTile(lngLat.lng, lngLat.lat, Math.floor(map.getZoom()));
-      const sources = key === 'secondary' ? secondarySources : mainSources;
-      let result = {};
-      for (let index = 0; index < sources.length; index++) {
-        const s = sources[index];
-        const buffer = await (
-          await fetch(
-            s.tiles[0].replace('{x}', tile[0]).replace('{y}', tile[1]).replace('{z}', tile[2])
-          )
-        ).arrayBuffer();
 
-        result[s.path] =
-          tileEncoding(s) === 'mlt' ? dumpMLTTile(buffer) : dumpTile(new VectorTile(new Pbf(buffer)));
+  function tileAt(key: MapKey, point: { x: number; y: number }) {
+    const map = mapFor(key);
+    if (!map) return null;
+    const lngLat = map.unproject([point.x, point.y]);
+    return { lngLat, tile: pointToTile(lngLat.lng, lngLat.lat, Math.floor(map.getZoom())) };
+  }
+
+  async function copyTileAsGeoJSON(key: MapKey, point: { x: number; y: number }) {
+    const at = tileAt(key, point);
+    if (!at) return;
+    const sources = key === 'secondary' ? secondarySources : mainSources;
+    const result: Record<string, unknown> = {};
+    for (const source of sources) {
+      if (!source.tiles?.length) continue;
+      try {
+        const url = source.tiles[0]
+          .replace('{x}', String(at.tile[0]))
+          .replace('{y}', String(at.tile[1]))
+          .replace('{z}', String(at.tile[2]));
+        const buffer = await (await fetch(url)).arrayBuffer();
+        result[source.file] = source.encoding === 'mlt' ? dumpMLT(buffer) : dumpMVT(buffer);
+      } catch (error) {
+        console.error('tile dump failed', source.path, error);
       }
-      if (Object.keys(result).length === 1) {
-        writeText(JSON.stringify(result[Object.keys(result)[0]]));
-      } else {
-        writeText(JSON.stringify(result));
+    }
+    const keys = Object.keys(result);
+    copy(JSON.stringify(keys.length === 1 ? result[keys[0]] : result, null, 2));
+  }
+
+  function copyTileUrl(key: MapKey, point: { x: number; y: number }) {
+    const at = tileAt(key, point);
+    const sources = key === 'secondary' ? secondarySources : mainSources;
+    if (!at || !sources.length || !sources[0].tiles?.length) return;
+    copy(
+      sources[0].tiles[0]
+        .replace('{x}', String(at.tile[0]))
+        .replace('{y}', String(at.tile[1]))
+        .replace('{z}', String(at.tile[2]))
+    );
+  }
+
+  function openInOSM(key: MapKey = 'main') {
+    const map = mapFor(key) ?? mainMap;
+    if (!map) return;
+    const center = map.getCenter();
+    openUrl(`https://www.openstreetmap.org/#map=${Math.round(map.getZoom()) + 1}/${center.lat}/${center.lng}`);
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* layout                                                                 */
+  /* ---------------------------------------------------------------------- */
+
+  function resizeMaps() {
+    mainMap?.resize();
+    secondaryMap?.resize();
+  }
+
+  function onPanelResize(event: CustomEvent<number>) {
+    settings.update((current) => ({
+      ...current,
+      panelWidth: Math.max(220, Math.min(560, current.panelWidth + event.detail)),
+    }));
+    resizeMaps();
+  }
+
+  function onTableResize(event: CustomEvent<number>) {
+    const delta = (event.detail / window.innerHeight) * 100;
+    settings.update((current) => ({
+      ...current,
+      tableHeight: Math.max(12, Math.min(75, current.tableHeight - delta)),
+    }));
+    resizeMaps();
+  }
+
+  $: {
+    // any chrome change moves the map's box; maplibre needs telling
+    void $settings.panelOpen;
+    void $settings.showTable;
+    void $settings.panelWidth;
+    void $settings.tableHeight;
+    void $compact;
+    tick().then(resizeMaps);
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* keyboard                                                               */
+  /* ---------------------------------------------------------------------- */
+
+  function onKeydown(event: KeyboardEvent) {
+    const target = event.target as HTMLElement;
+    if (target?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+    if (event.metaKey || event.ctrlKey) {
+      if (event.key === 'o') {
+        event.preventDefault();
+        addMBTiles({ key: activeKey });
       }
-    } catch (err) {
-      console.error(err);
-      writeText(JSON.stringify({}));
+      return;
+    }
+    switch (event.key) {
+      case 'b':
+        settings.update((s) => ({ ...s, showBackground: !s.showBackground }));
+        break;
+      case 't':
+        settings.update((s) => ({ ...s, showTileBoundaries: !s.showTileBoundaries }));
+        break;
+      case 'i':
+        settings.update((s) => ({
+          ...s,
+          inspect: s.inspect === 'click' ? 'hover' : s.inspect === 'hover' ? 'off' : 'click',
+        }));
+        break;
+      case 'f':
+        settings.update((s) => ({ ...s, showTable: !s.showTable }));
+        break;
+      case 'l':
+        if ($compact) panelSheetOpen = !panelSheetOpen;
+        else settings.update((s) => ({ ...s, panelOpen: !s.panelOpen }));
+        break;
+      case 's':
+        toggleCompare();
+        break;
     }
   }
+
+  /* the context menu points at whichever map was right-clicked */
+  let mainPoint = { x: 0, y: 0 };
+  let secondaryPoint = { x: 0, y: 0 };
 </script>
 
-<Theme bind:theme persist persistKey="__carbon-theme" />
-<svelte:head>
-  {#if theme === 'white'}
-    {@html light}
-  {:else}
-    {@html dark}
-  {/if}
-</svelte:head>
+<svelte:window on:keydown={onKeydown} on:resize={resizeMaps} />
 
-<div class="drawer-container">
-  <Header company="MBTiles" platformName="Viewer">
-    <svelte:fragment slot="skip-to-content">
-      <SkipToContent />
-    </svelte:fragment>
-    <HeaderUtilities>
-      <HeaderGlobalAction iconDescription={$_('open_osm')} icon={EarthFilled16} on:click={openInOSM} />
-      <HeaderGlobalAction iconDescription={$_('reload')} icon={Renew16} on:click={reloadMBtiles} />
-      <HeaderGlobalAction
-      iconDescription={$_('opens_split')}
-        icon={SplitScreen16}
-        on:click={switchCompareView}
-      />
-      <HeaderGlobalAction
-      iconDescription={$_('open_bottom_panel')}
-        icon={OpenPanelBottom16}
-        on:click={switchBottomPanel}
-      />
-      <HeaderAction>
-        <div style="padding:10px">
-          <h3 style:margin-bottom="30px">{$_('settings')}</h3>
-          <Select labelText={$_('theme')} bind:selected={theme}>
-            <SelectItem value="white" text="White" />
-            <SelectItem value="g10" text="Gray 10" />
-            <SelectItem value="g80" text="Gray 80" />
-            <SelectItem value="g90" text="Gray 90" />
-            <SelectItem value="g100" text="Gray 100" />
-          </Select>
-        </div>
-      </HeaderAction>
-    </HeaderUtilities>
-  </Header>
+<div class="app">
+  <header class="toolbar">
+    <div class="brand">
+      <Layers size={16} />
+      {#if !$compact}<span>MBTiles</span>{/if}
+    </div>
 
-  <div style="padding-top:3rem;flex:auto;">
-    <Split
-      on:changed={onBottomSplitChanged}
-      bind:this={bottomSplit}
-      horizontal
-      initialPrimarySize="100%"
-      minPrimarySize="50%"
-      splitterSize={showBottomPanel ? '10px' : '0px'}
-    >
-      <Split
-        slot="primary"
-        resetOnDoubleClick={true}
-        initialPrimarySize="270px"
-        minSecondarySize="50%"
-      >
-        <Menu
-          id="primary"
-          slot="primary"
-          sources={mainSources}
-          map={mainMap}
-          on:add_source={(event) => addMBTiles({ key: 'main', ...event.detail })}
-          on:remove_source={(event) => removeDataSource('main', event.detail)}
-          bind:wantPopup
-          bind:wantTileBounds
-          bind:showBackgroundLayer={mainShowBackgroundLayer}
+    <IconButton
+      icon={Folder}
+      label={$_('open_mbtiles')}
+      on:click={() => addMBTiles({ key: activeKey })}
+    />
+    <IconButton
+      icon={SplitScreen}
+      label={$_('opens_split')}
+      active={!!secondaryMap}
+      disabled={!mainMap}
+      on:click={toggleCompare}
+    />
+    <IconButton
+      icon={Table}
+      label={$_('open_bottom_panel')}
+      active={$settings.showTable}
+      on:click={() => settings.update((s) => ({ ...s, showTable: !s.showTable }))}
+    />
+    {#if !$compact}
+      <IconButton
+        icon={View}
+        label={$_('show_background_layer')}
+        active={$settings.showBackground}
+        on:click={() => settings.update((s) => ({ ...s, showBackground: !s.showBackground }))}
+      />
+    {/if}
+
+    <div class="spacer" />
+
+    <IconButton icon={Renew} label={$_('reload')} disabled={!hasSources} on:click={reloadAll} />
+    {#if !$compact}
+      <IconButton
+        icon={EarthFilled}
+        label={$_('open_osm')}
+        disabled={!mainMap}
+        on:click={() => openInOSM(activeKey)}
+      />
+    {/if}
+    <IconButton icon={Settings} label={$_('settings')} on:click={() => (settingsOpen = true)} />
+    {#if $compact}
+      <IconButton
+        icon={Layers}
+        label={$_('layers')}
+        active={panelSheetOpen}
+        on:click={() => (panelSheetOpen = !panelSheetOpen)}
+      />
+    {/if}
+  </header>
+
+  <div class="body">
+    {#if !$compact && $settings.panelOpen}
+      <aside class="panel" style:width="{$settings.panelWidth}px">
+        {#if secondaryMap}
+          <div class="tabs">
+            <SegmentedControl
+              bind:value={activeKey}
+              options={[
+                { value: 'main', label: $_('map_a') },
+                { value: 'secondary', label: $_('map_b') },
+              ]}
+            />
+          </div>
+        {/if}
+        <SourcePanel
+          sources={activeSources}
+          map={activeMap}
+          on:add={(event) => addMBTiles({ key: activeKey, ...event.detail })}
+          on:remove={(event) => removeSource(activeKey, event.detail)}
+          on:zoom={(event) => fitTo(event.detail)}
+          on:info={(event) => (infoSource = event.detail)}
+          on:copyPath={(event) => copy(event.detail.path)}
+          on:reloadSource={(event) => reloadSource(activeKey, event.detail)}
+          on:reorder={() => onReorder(activeKey)}
+          on:reordered={() => onReorder(activeKey)}
         />
-        <svelte:fragment slot="secondary">
-          <Split
-            initialPrimarySize="100%"
-            bind:this={secondarySplit}
-            resetOnDoubleClick={true}
-            minPrimarySize="50%"
-            splitterSize={secondaryMap ? '10px' : '0px'}
-          >
-            <div id="app-content" slot="primary">
-              <FileDrop
-                extensions={['mbtiles', 'etiles']}
-                handleFiles={handleDroppedFile}
-                let:files
-              >
-                <div class="dropzone" class:droppable={files.length > 0}>
-                  {#if files.length > 0}
-                    <h1 style:text-align="center" style:word-break="break-word">
-                      Import Mbtiles: <br />
-                      {files[0]}
-                    </h1>
-                  {/if}
-                </div>
-              </FileDrop>
-              <!-- <div
-              style="position:absolute; width:100%;height:100%;display:flex;z-index:100;pointer-events:none;"
-            >
-            </div> -->
-              {#if !hasSources}
-                <h1 id="no_mbtiles">{$_('drop_open_mbtiles')}</h1>
-              {/if}
-              <div id="comparison-container">
-                <div id="secondary" class="map" bind:this={secondaryMapDiv}>
-                  <MapPopup
-                    map={secondaryMap}
-                    sources={secondarySources}
-                    bind:features={secondaryFeatures}
-                    enabled={wantPopup}
-                    onlyOnClick={secondaryPopupOnClick}
-                  />
-                </div>
-                <div id="main" class="map" bind:this={mainMapDiv}>
-                  <MapPopup
-                    map={mainMap}
-                    sources={mainSources}
-                    bind:features={mainFeatures}
-                    enabled={wantPopup}
-                    onlyOnClick={mainPopupOnClick}
-                  />
-                </div>
+      </aside>
+      <Resizer orientation="vertical" on:move={onPanelResize} />
+    {/if}
+
+    <div class="stage">
+      <div class="maps">
+        <FileDrop
+          extensions={['mbtiles', 'etiles']}
+          handleFiles={(paths) => paths.forEach((path) => addMBTiles({ key: activeKey, path }))}
+          let:files
+        >
+          <div class="dropzone" class:droppable={files.length > 0}>
+            {#if files.length > 0}
+              <div class="drop-card">
+                <p>{$_('import_mbtiles')}</p>
+                <strong>{files.map((file) => file.split(/[\\/]/).pop()).join(', ')}</strong>
               </div>
-            </div>
-            <svelte:fragment slot="secondary">
-              {#if secondaryMap}
-                <Menu
-                  id="secondary"
-                  on:remove_source={(event) => removeDataSource('secondary', event.detail)}
-                  on:add_source={(event) => addMBTiles({ key: 'secondary', ...event.detail })}
-                  sources={secondarySources}
-                  map={secondaryMap}
-                  bind:wantPopup
-                  bind:wantTileBounds
-                  bind:showBackgroundLayer={secondaryShowBackgroundLayer}
-                />
-              {/if}
-            </svelte:fragment>
-          </Split>
-        </svelte:fragment>
-      </Split>
-      <svelte:fragment slot="secondary">
-        <div style:height="100%" style:overflow="auto">
-          <DataTable
-            class="canSelectText"
-            size="short"
-            expandable
-            headers={selectedFeaturesHeaders}
-            rows={selectedFeaturesData}
-          >
-            <svelte:fragment slot="expanded-row" let:row>
-              <Highlight
-                class="canSelectText"
-                language={json}
-                code={JSON.stringify(row.data, null, 2)}
-              />
-            </svelte:fragment>
-          </DataTable>
+            {/if}
+          </div>
+        </FileDrop>
+
+        {#if !hasSources}
+          <div class="welcome">
+            <Layers size={32} />
+            <h1>{$_('drop_open_mbtiles')}</h1>
+            <button type="button" class="cta" on:click={() => addMBTiles({ key: 'main' })}>
+              {$_('open_mbtiles')}
+            </button>
+            {#if $settings.recent.length}
+              <ul class="recent">
+                {#each $settings.recent.slice(0, 5) as path (path)}
+                  <li>
+                    <button type="button" on:click={() => addMBTiles({ key: 'main', path })}>
+                      {path.split(/[\\/]/).pop()}
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
+        {/if}
+
+        <div id="comparison-container">
+          <div id="secondary" class="map" bind:this={secondaryMapDiv}>
+            <MapPopup
+              map={secondaryMap}
+              sources={secondarySources}
+              bind:features={secondaryFeatures}
+              mode={$settings.inspect}
+            />
+          </div>
+          <div id="main" class="map" bind:this={mainMapDiv}>
+            <MapPopup
+              map={mainMap}
+              sources={mainSources}
+              bind:features={mainFeatures}
+              mode={$settings.inspect}
+            />
+          </div>
         </div>
-      </svelte:fragment>
-    </Split>
+
+        <StatusBar map={activeMap} onCopy={copy} />
+      </div>
+
+      {#if $settings.showTable && !$compact}
+        <Resizer orientation="horizontal" on:move={onTableResize} />
+        <div class="table" style:height="{$settings.tableHeight}%">
+          <FeatureTable
+            features={tableFeatures}
+            onCopy={copy}
+            onClose={() => settings.update((s) => ({ ...s, showTable: false }))}
+          />
+        </div>
+      {/if}
+    </div>
   </div>
-  <ContextMenu target={mainMapDiv}>
-    <ContextMenuOption
-      indented
-      labelText={$_('copy_tile_geojson')}
-      icon={CopyFile}
-      on:click={(e) => copyTileAsGeoJSON('main', e)}
-    />
-  </ContextMenu>
-  <ContextMenu target={secondaryMapDiv}>
-    <ContextMenuOption
-      indented
-      labelText={$_('copy_tile_geojson')}
-      icon={CopyFile}
-      on:click={(e) => copyTileAsGeoJSON('secondary', e)}
-    />
-  </ContextMenu>
+
+  {#if !$compact}
+    <button
+      type="button"
+      class="panel-toggle"
+      class:closed={!$settings.panelOpen}
+      aria-label={$_('layers')}
+      title={$_('layers')}
+      on:click={() => settings.update((s) => ({ ...s, panelOpen: !s.panelOpen }))}
+    >
+      <Layers size={16} />
+    </button>
+  {/if}
 </div>
 
+{#if $compact}
+  <Sheet
+    open={panelSheetOpen}
+    title={$_('layers')}
+    onClose={() => (panelSheetOpen = false)}
+  >
+    {#if secondaryMap}
+      <div class="tabs">
+        <SegmentedControl
+          bind:value={activeKey}
+          options={[
+            { value: 'main', label: $_('map_a') },
+            { value: 'secondary', label: $_('map_b') },
+          ]}
+        />
+      </div>
+    {/if}
+    <div class="sheet-panel">
+      <SourcePanel
+        sources={activeSources}
+        map={activeMap}
+        on:add={(event) => addMBTiles({ key: activeKey, ...event.detail })}
+        on:remove={(event) => removeSource(activeKey, event.detail)}
+        on:zoom={(event) => fitTo(event.detail)}
+        on:info={(event) => (infoSource = event.detail)}
+        on:copyPath={(event) => copy(event.detail.path)}
+        on:reloadSource={(event) => reloadSource(activeKey, event.detail)}
+        on:reorder={() => onReorder(activeKey)}
+        on:reordered={() => onReorder(activeKey)}
+      />
+    </div>
+  </Sheet>
+
+  {#if $settings.showTable}
+    <div class="table-overlay">
+      <FeatureTable
+        features={tableFeatures}
+        onCopy={copy}
+        onClose={() => settings.update((s) => ({ ...s, showTable: false }))}
+      />
+    </div>
+  {/if}
+{/if}
+
+<ContextMenu target={mainMapDiv} bind:point={mainPoint}>
+  <MenuItem
+    label={$_('copy_tile_geojson')}
+    icon={CopyFile}
+    on:click={() => copyTileAsGeoJSON('main', mainPoint)}
+  />
+  <MenuItem
+    label={$_('copy_tile_url')}
+    icon={Copy}
+    on:click={() => copyTileUrl('main', mainPoint)}
+  />
+  <MenuItem
+    label={$_('copy_coordinates')}
+    icon={Copy}
+    on:click={() => {
+      const at = tileAt('main', mainPoint);
+      if (at) copy(`${at.lngLat.lat},${at.lngLat.lng}`);
+    }}
+  />
+  <MenuItem label={$_('open_osm')} icon={EarthFilled} on:click={() => openInOSM('main')} />
+</ContextMenu>
+
+<ContextMenu target={secondaryMapDiv} bind:point={secondaryPoint}>
+  <MenuItem
+    label={$_('copy_tile_geojson')}
+    icon={CopyFile}
+    on:click={() => copyTileAsGeoJSON('secondary', secondaryPoint)}
+  />
+  <MenuItem
+    label={$_('copy_tile_url')}
+    icon={Copy}
+    on:click={() => copyTileUrl('secondary', secondaryPoint)}
+  />
+  <MenuItem label={$_('open_osm')} icon={EarthFilled} on:click={() => openInOSM('secondary')} />
+</ContextMenu>
+
+<SettingsSheet
+  open={settingsOpen}
+  onClose={() => (settingsOpen = false)}
+  onBasemap={changeBasemap}
+/>
+
+<SourceInfo source={infoSource} onClose={() => (infoSource = null)} />
+
 <style>
+  .app {
+    display: flex;
+    position: absolute;
+    inset: 0;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .toolbar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 6px;
+    padding-top: calc(3px + var(--safe-top));
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px 0 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .spacer {
+    flex: 1;
+  }
+
+  .body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+  .panel {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--surface);
+  }
+  .tabs {
+    flex: 0 0 auto;
+    padding: 4px 8px 0;
+  }
+
+  .stage {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+  .maps {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    background: var(--surface-sunken);
+  }
+  .table {
+    flex: 0 0 auto;
+    min-height: 0;
+    border-top: 1px solid var(--border);
+  }
+  .table-overlay {
+    position: absolute;
+    inset: auto 0 0 0;
+    z-index: 45;
+    height: 60%;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
   .dropzone {
     position: absolute;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 100;
-    padding: 20px;
-    background: transparent;
-    border: 1 solid #eee;
+    inset: 0;
+    z-index: 30;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    pointer-events: none;
   }
   .droppable {
-    background: #d6dff088;
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  .drop-card {
+    padding: 16px 24px;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    text-align: center;
+  }
+  .drop-card p {
+    margin: 0 0 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .welcome {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-faint);
+    text-align: center;
+  }
+  .welcome h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+  }
+  .cta {
+    min-height: var(--control-h);
+    padding: 0 16px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .recent {
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .recent button {
+    padding: 3px 8px;
+    border: none;
+    background: transparent;
+    color: var(--accent-text);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .recent button:hover {
+    text-decoration: underline;
+  }
+
+  .panel-toggle {
+    /* top-left: the status bar owns the bottom-left corner */
+    position: absolute;
+    top: calc(var(--tap) + 16px + var(--safe-top));
+    left: 8px;
+    z-index: 15;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--tap);
+    height: var(--tap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-float);
+    box-shadow: var(--shadow);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .panel-toggle.closed {
+    display: flex;
+  }
+
+  .sheet-panel {
+    height: 100%;
+    min-height: 220px;
   }
 </style>

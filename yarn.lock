@@ -49,15 +49,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@carbon/telemetry@npm:0.1.0":
-  version: 0.1.0
-  resolution: "@carbon/telemetry@npm:0.1.0"
-  bin:
-    carbon-telemetry: bin/carbon-telemetry.js
-  checksum: 10/4a803573ab2ff78088d972a6b5570cc8bce3230306882d58eee99a37bbf98b167143401cb1435c0c5b607436de603e23fe3cdd9bb39d41e56a172bedcde8c1f3
-  languageName: node
-  linkType: hard
-
 "@commitlint/cli@npm:^19.3.0":
   version: 19.3.0
   resolution: "@commitlint/cli@npm:19.3.0"
@@ -677,13 +668,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@geoffcox/svelte-splitter@npm:^1.0.1":
-  version: 1.0.1
-  resolution: "@geoffcox/svelte-splitter@npm:1.0.1"
-  checksum: 10/d48b441889d657fc639e4208bf32ad02b63199050a08bd649c6fe7b8f772143a630e8908dd40f3d196761cbf075409f1999a33e9df1a3ac3dd902f14dc7a77ab
-  languageName: node
-  linkType: hard
-
 "@humanwhocodes/config-array@npm:^0.11.14":
   version: 0.11.14
   resolution: "@humanwhocodes/config-array@npm:0.11.14"
@@ -713,15 +697,6 @@ __metadata:
   version: 3.0.2
   resolution: "@hutson/parse-repository-url@npm:3.0.2"
   checksum: 10/dae0656f2e77315a3027ab9ca438ed344bf78a5fda7b145f65a1fface20dfb17e94e1d31e146c8b76de4657c21020aabc72dc53b53941c9f5fe2c27416559283
-  languageName: node
-  linkType: hard
-
-"@ibm/telemetry-js@npm:^1.2.1":
-  version: 1.5.1
-  resolution: "@ibm/telemetry-js@npm:1.5.1"
-  bin:
-    ibmtelemetry: dist/collect.js
-  checksum: 10/af59db5c01c7786c0a999e36e68f2928572e328549b4607dc57a706f1cdb2c3d8f00fa5e4bbcb7200f909982146aa0cde79b30544c35a382bfbab667f561d4b9
   languageName: node
   linkType: hard
 
@@ -1311,32 +1286,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@turf/distance@npm:6.3.0":
-  version: 6.3.0
-  resolution: "@turf/distance@npm:6.3.0"
-  dependencies:
-    "@turf/helpers": "npm:^6.3.0"
-    "@turf/invariant": "npm:^6.3.0"
-  checksum: 10/1fdc32c44e154b15a65498e16c97d78dab601b81472c6a0c100e5b5750a08dc4ed48668d2484ab6b09d5aad0883ade7edbd2271831359f3e6127551c912679aa
-  languageName: node
-  linkType: hard
-
-"@turf/helpers@npm:^6.3.0, @turf/helpers@npm:^6.5.0":
-  version: 6.5.0
-  resolution: "@turf/helpers@npm:6.5.0"
-  checksum: 10/2d064338c64ffd70e25c50fd8307c89b10c7a7006e7903b27667ffb0aef85ce9dbbede9f3d4b05e961fdae84b2364b24b0cfd85208421062504617e40801be76
-  languageName: node
-  linkType: hard
-
-"@turf/invariant@npm:^6.3.0":
-  version: 6.5.0
-  resolution: "@turf/invariant@npm:6.5.0"
-  dependencies:
-    "@turf/helpers": "npm:^6.5.0"
-  checksum: 10/571003a39191bfe69b8bfd0efe97c18d307f0a7395ad52281ed869cfcd631e9f1a751d5e2a2af08fd8229e71f50e0e0c1ff7a1808eb8f666f15e65724d983585
-  languageName: node
-  linkType: hard
-
 "@types/conventional-commits-parser@npm:^5.0.0":
   version: 5.0.0
   resolution: "@types/conventional-commits-parser@npm:5.0.0"
@@ -1909,28 +1858,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"carbon-components-svelte@npm:0.85.0":
-  version: 0.85.0
-  resolution: "carbon-components-svelte@npm:0.85.0"
-  dependencies:
-    "@ibm/telemetry-js": "npm:^1.2.1"
-    flatpickr: "npm:4.6.9"
-  checksum: 10/f83b587f2bc7dd1f8863ce7021ef9c38e2bf6718ac1a30b64e36d2283d2c1c9ddce1d6427b19d2f0c5637d820928dfd666d6cdb6c1fcd1b88a23427b150ff7d7
-  languageName: node
-  linkType: hard
-
-"carbon-components@npm:10.58.15":
-  version: 10.58.15
-  resolution: "carbon-components@npm:10.58.15"
-  dependencies:
-    "@carbon/telemetry": "npm:0.1.0"
-    flatpickr: "npm:4.6.1"
-    lodash.debounce: "npm:^4.0.8"
-    warning: "npm:^3.0.0"
-  checksum: 10/f76ba22855a87a6015ab9e810199f55fc1d2e55bc3ab829ed1dff1ad545a8a53b503642e5eafcd27796308ab36365bbd7b5d6a9c0cbcf3f366c73fbffd28b66a
-  languageName: node
-  linkType: hard
-
 "carbon-icons-svelte@npm:^12.10.0":
   version: 12.10.0
   resolution: "carbon-icons-svelte@npm:12.10.0"
@@ -1966,7 +1893,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chokidar@npm:>=3.0.0 <4.0.0, chokidar@npm:^3.4.1":
+"chokidar@npm:^3.4.1":
   version: 3.5.3
   resolution: "chokidar@npm:3.5.3"
   dependencies:
@@ -2090,7 +2017,6 @@ __metadata:
   dependencies:
     "@commitlint/cli": "npm:^19.3.0"
     "@commitlint/config-conventional": "npm:^19.2.2"
-    "@geoffcox/svelte-splitter": "npm:^1.0.1"
     "@mapbox/tilebelt": "npm:1.0.2"
     "@mapbox/vector-tile": "npm:^2.0.3"
     "@maplibre/maplibre-gl-compare": "npm:^0.5.0"
@@ -2107,8 +2033,6 @@ __metadata:
     "@types/mapbox__tilebelt": "npm:^1.0.4"
     "@typescript-eslint/eslint-plugin": "npm:^7.17.0"
     "@typescript-eslint/parser": "npm:^7.17.0"
-    carbon-components: "npm:10.58.15"
-    carbon-components-svelte: "npm:0.85.0"
     carbon-icons-svelte: "npm:^12.10.0"
     cssnano: "npm:^7.0.3"
     eslint: "npm:^8.57.0"
@@ -2116,18 +2040,14 @@ __metadata:
     eslint-plugin-prettier: "npm:^5.2.1"
     eslint-plugin-svelte3: "npm:^4.0.0"
     events: "npm:^3.3.0"
-    highlight.js: "npm:^11.10.0"
-    mapbox-gl-controls: "npm:^2.3.5"
     maplibre-gl: "npm:^5.24.0"
     pbf: "npm:^4.0.1"
     prettier: "npm:^3.3.3"
     prettier-plugin-svelte: "npm:^3.2.6"
     randomcolor: "npm:^0.6.2"
-    sass: "npm:^1.77.6"
     standard-version: "npm:^9.5.0"
     svelte: "npm:^4.2.18"
     svelte-check: "npm:^3.8.4"
-    svelte-highlight: "npm:^7.7.0"
     svelte-i18n: "npm:^4.0.0"
     svelte-preprocess: "npm:^5.1.4"
     typescript: "npm:^5.5.4"
@@ -3444,20 +3364,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"flatpickr@npm:4.6.1":
-  version: 4.6.1
-  resolution: "flatpickr@npm:4.6.1"
-  checksum: 10/0178772a1067d59fdb079db48ba05eeca63b5b0a9976f308e1be0c38a4e72f4dc7f7990d39f5f6aa6e3e93721fe395af6acdfe2cec9e8ad0b0f0338f1ee7e1e5
-  languageName: node
-  linkType: hard
-
-"flatpickr@npm:4.6.9":
-  version: 4.6.9
-  resolution: "flatpickr@npm:4.6.9"
-  checksum: 10/0845ef213be9aa48df3c0983e9cea7043e8678eba931d382994e5e8aa07ae2c6d3fead7570d4dcac8e063b53bc489053b9842cd2a771868a280880dfca487a5e
-  languageName: node
-  linkType: hard
-
 "flatted@npm:^3.1.0":
   version: 3.2.6
   resolution: "flatted@npm:3.2.6"
@@ -3796,13 +3702,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"highlight.js@npm:11.10.0, highlight.js@npm:^11.10.0":
-  version: 11.10.0
-  resolution: "highlight.js@npm:11.10.0"
-  checksum: 10/fc8747bcd4a491fc6a47ff80536881dcc9ea9b36cdc2a22a7be5670b89d76ca6c26df9d749017a23bbb2eb708331097a5ecbcee6330fb9064512d80cc3369d99
-  languageName: node
-  linkType: hard
-
 "hosted-git-info@npm:^2.1.4":
   version: 2.8.9
   resolution: "hosted-git-info@npm:2.8.9"
@@ -3883,13 +3782,6 @@ __metadata:
   version: 5.3.1
   resolution: "ignore@npm:5.3.1"
   checksum: 10/0a884c2fbc8c316f0b9f92beaf84464253b73230a4d4d286697be45fca081199191ca33e1c2e82d9e5f851f5e9a48a78e25a35c951e7eb41e59f150db3530065
-  languageName: node
-  linkType: hard
-
-"immutable@npm:^4.0.0":
-  version: 4.1.0
-  resolution: "immutable@npm:4.1.0"
-  checksum: 10/1bd10f07d945ad14c95bbb69c7f58eef23ce8be4b8d097f6c4a786a76c2f09b013f1a8d787a9466b7481b9e474a28afad61d81f0a756d71403971fb1d126014c
   languageName: node
   linkType: hard
 
@@ -4128,7 +4020,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"js-tokens@npm:^3.0.0 || ^4.0.0, js-tokens@npm:^4.0.0":
+"js-tokens@npm:^4.0.0":
   version: 4.0.0
   resolution: "js-tokens@npm:4.0.0"
   checksum: 10/af37d0d913fb56aec6dc0074c163cc71cd23c0b8aad5c2350747b6721d37ba118af35abdd8b33c47ec2800de07dedb16a527ca9c530ee004093e04958bd0cbf2
@@ -4327,13 +4219,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash.debounce@npm:^4.0.8":
-  version: 4.0.8
-  resolution: "lodash.debounce@npm:4.0.8"
-  checksum: 10/cd0b2819786e6e80cb9f5cda26b1a8fc073daaf04e48d4cb462fa4663ec9adb3a5387aa22d7129e48eed1afa05b482e2a6b79bfc99b86886364449500cbb00fd
-  languageName: node
-  linkType: hard
-
 "lodash.ismatch@npm:^4.4.0":
   version: 4.4.0
   resolution: "lodash.ismatch@npm:4.4.0"
@@ -4408,17 +4293,6 @@ __metadata:
   version: 4.17.21
   resolution: "lodash@npm:4.17.21"
   checksum: 10/c08619c038846ea6ac754abd6dd29d2568aa705feb69339e836dfa8d8b09abbb2f859371e86863eda41848221f9af43714491467b5b0299122431e202bb0c532
-  languageName: node
-  linkType: hard
-
-"loose-envify@npm:^1.0.0":
-  version: 1.4.0
-  resolution: "loose-envify@npm:1.4.0"
-  dependencies:
-    js-tokens: "npm:^3.0.0 || ^4.0.0"
-  bin:
-    loose-envify: cli.js
-  checksum: 10/6517e24e0cad87ec9888f500c5b5947032cdfe6ef65e1c1936a0c48a524b81e65542c9c3edc91c97d5bddc806ee2a985dbc79be89215d613b1de5db6d1cfe6f4
   languageName: node
   linkType: hard
 
@@ -4500,17 +4374,6 @@ __metadata:
   version: 4.3.0
   resolution: "map-obj@npm:4.3.0"
   checksum: 10/fbc554934d1a27a1910e842bc87b177b1a556609dd803747c85ece420692380827c6ae94a95cce4407c054fa0964be3bf8226f7f2cb2e9eeee432c7c1985684e
-  languageName: node
-  linkType: hard
-
-"mapbox-gl-controls@npm:^2.3.5":
-  version: 2.3.5
-  resolution: "mapbox-gl-controls@npm:2.3.5"
-  dependencies:
-    "@turf/distance": "npm:6.3.0"
-  peerDependencies:
-    mapbox-gl: ">=1.0.0 <3.0.0"
-  checksum: 10/2fc66d0d770c8680b06380f7d30d47a00ac7bd605ed52b1452718d7087bf46462220faf406c4dfbc46201b4250dd16608b1a6352f43dffb711c0c11d67277326
   languageName: node
   linkType: hard
 
@@ -6037,19 +5900,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sass@npm:^1.77.6":
-  version: 1.77.6
-  resolution: "sass@npm:1.77.6"
-  dependencies:
-    chokidar: "npm:>=3.0.0 <4.0.0"
-    immutable: "npm:^4.0.0"
-    source-map-js: "npm:>=0.6.2 <2.0.0"
-  bin:
-    sass: sass.js
-  checksum: 10/695f9864e4a32a68eaf69c4675eccaf7feef25b5656dff72f896901d37580bdfc1fd84dae81e176dc4f6b40536b89cb8f7d7e00a33e919caad8a547cbce098f3
-  languageName: node
-  linkType: hard
-
 "semver@npm:2 || 3 || 4 || 5":
   version: 5.7.1
   resolution: "semver@npm:5.7.1"
@@ -6174,7 +6024,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"source-map-js@npm:>=0.6.2 <2.0.0, source-map-js@npm:^1.0.1":
+"source-map-js@npm:^1.0.1":
   version: 1.0.2
   resolution: "source-map-js@npm:1.0.2"
   checksum: 10/38e2d2dd18d2e331522001fc51b54127ef4a5d473f53b1349c5cca2123562400e0986648b52e9407e348eaaed53bce49248b6e2641e6d793ca57cb2c360d6d51
@@ -6414,15 +6264,6 @@ __metadata:
   bin:
     svelte-check: bin/svelte-check
   checksum: 10/3e4f73c995ca399774f1e9b72fd2c3af7174c3b43315ce41f7180c4e3886caaa3d1c75ebbf4fd32583c7aa8c1300cdf2beac066a2d516dd3a3c3e6483b89e046
-  languageName: node
-  linkType: hard
-
-"svelte-highlight@npm:^7.7.0":
-  version: 7.7.0
-  resolution: "svelte-highlight@npm:7.7.0"
-  dependencies:
-    highlight.js: "npm:11.10.0"
-  checksum: 10/58196fd1a0a777fe7c71143026cec86c40beb98030d7006e96bd38b6857dc54c02ab89ec4c88d824574863ddc9cccf3a0627afae49015a7310bdd173c79e58b9
   languageName: node
   linkType: hard
 
@@ -6971,15 +6812,6 @@ __metadata:
     vite:
       optional: true
   checksum: 10/65ef98208c1e26f78315b5f3e1b73f87189b34f1e6a8dc11f66a3263624dd27bd1ff1571a3a54ad5ef273336259f26545b6005bab6fc04a049d50aa4b829791d
-  languageName: node
-  linkType: hard
-
-"warning@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "warning@npm:3.0.0"
-  dependencies:
-    loose-envify: "npm:^1.0.0"
-  checksum: 10/c9f99a12803aab81b29858e7dc3415bf98b41baee3a4c3acdeb680d98c47b6e17490f1087dccc54432deed5711a5ce0ebcda2b27e9b5eb054c32ae50acb4419c
   languageName: node
   linkType: hard
 

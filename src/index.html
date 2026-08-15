@@ -1,13 +1,45 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="/global.css" />
+    <!-- viewport-fit=cover so the shell can lay itself out around the notch and
+         the home bar with the safe-area insets -->
     <meta
       id="Viewport"
       name="viewport"
-      content="initial-scale=0.5, maximum-scale=0.5, minimum-scale=0.5, user-scalable=no"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"
     />
+    <meta name="color-scheme" content="light dark" />
+
+    <!--
+      Resolves the theme before the first paint. The app bundle would do this
+      too, but a frame later — long enough to flash a white screen at someone
+      who asked for dark. Kept deliberately tiny and dependency-free;
+      lib/theme.ts picks the preference back up from the data attribute.
+    -->
+    <script>
+      (function () {
+        var preference = 'auto';
+        try {
+          var stored = JSON.parse(localStorage.getItem('mbview.settings') || '{}');
+          if (stored.theme === 'light' || stored.theme === 'dark') {
+            preference = stored.theme;
+          }
+        } catch (error) {
+          /* unreadable settings just mean Auto */
+        }
+        var root = document.documentElement;
+        root.dataset.themePreference = preference;
+        root.dataset.theme =
+          preference === 'auto'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : preference;
+      })();
+    </script>
+
     <link rel="icon" href="/favicon.png" />
   </head>
   <body>

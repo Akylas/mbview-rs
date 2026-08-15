@@ -1,265 +1,130 @@
+/*
+ * Overrides for things rendered outside the Svelte tree: maplibre's own
+ * controls and popups, and the compare plugin's swiper. Everything else lives
+ * in theme.css or in a component.
+ *
+ * This file is a <link> in the document head while maplibre's stylesheet
+ * arrives later as a JS-injected <style>, so selectors here stay qualified
+ * enough to keep winning the cascade.
+ */
+
+html,
 body {
+  height: 100%;
   margin: 0;
-  width: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  height: 100%;
   overflow: hidden;
-  position: fixed;
-  
 }
 
-body * {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
-/* fallback */
-@font-face {
-  font-family: 'Material Icons';
-  font-style: normal;
-  font-weight: 400;
-  src: url(./material-icons.woff2) format('woff2');
-}
-
-.material-icons {
-  font-family: 'Material Icons';
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-}
-
-.map, #comparison-container {
-  /* flex:auto; */
-  /* flex-grow: 1; */
-  height: 100%;
-  width: 100%;
+.map,
+#comparison-container {
   position: absolute !important;
-}
-.container {
-  height: 100%;
   width: 100%;
-  position: absolute !important;
+  height: 100%;
 }
 
+/* maplibre defaults to a white card, which reads as a hole in a dark shell */
+.maplibregl-map .maplibregl-ctrl-group {
+  background: var(--surface-float);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.maplibregl-map .maplibregl-ctrl-group button {
+  width: var(--tap);
+  height: var(--tap);
+  background: transparent;
+}
+.maplibregl-map .maplibregl-ctrl-group button:hover {
+  background: var(--surface-raised);
+}
+.maplibregl-map .maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--border);
+}
+/* the control glyphs are black SVGs baked into the stylesheet; only dark
+   needs them flipped, and the compass needle is an <span> of its own */
+:root[data-theme='dark'] .maplibregl-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib {
+  background: var(--surface-float);
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.maplibregl-map .maplibregl-ctrl-attrib a {
+  color: var(--accent-text);
+}
+.maplibregl-map .maplibregl-ctrl-attrib-button {
+  background-color: transparent;
+}
+:root[data-theme='dark'] .maplibregl-map .maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}
+
+.maplibregl-map .maplibregl-ctrl-scale {
+  margin: 4px;
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-top: none;
+  background: var(--surface-float);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: right;
+}
+
+/* the popup is a data readout, not chrome: it follows the shell's surface */
 .maplibregl-popup-content {
-  overflow-y: auto;
-  overflow-x: hidden;
-  
+  padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface) !important;
+  box-shadow: var(--shadow) !important;
+  color: var(--text);
+}
+.maplibregl-popup-tip {
+  display: none;
 }
 .map_popup {
-  max-height: 47%;
-  position: relative;
-  overflow-x: hidden;
-}
-.maplibregl-ctrl-scale {
-text-align: right;
+  max-width: min(360px, 80vw) !important;
 }
 
-#app-content {
-  flex: auto;
-  overflow: hidden;
+/*
+ * The compare swiper ships as a 60px filled disc in mapbox blue with arrow
+ * glyphs baked in. It sits right where you want to look, so it is reduced to
+ * an open ring: the handle is still obvious, and the map underneath it stays
+ * readable on both sides of the split.
+ */
+.maplibregl-compare {
+  background-color: var(--accent) !important;
 }
-
-/* #menu {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1;
-  color: white;
-  cursor: pointer;
-}
-#menu-container {
-  position: absolute;
-  display: none;
-  top: 50px;
-  right: 10px;
-  max-height: 90%;
-  z-index: 1;
-  background-color: red;
-  overflow: auto;
-  padding: 20px;
-}
-
-
-.light #menu-container {
-  background-color:white !important;
-}
-.dark #menu-container {
-  background-color:#393939 !important;
-} */
-
-.icon.big {
-  line-height: 40px;
-}
-.icon:not(.big):before {
-  margin-right: 5px;
-}
-.icon:empty:before {
-  margin: 0;
-}
-.icon.menu:before {
-  content: '\e964';
-}
-
-.drawer  {
-  height:100%;
-  padding: 15px;
-  overflow-x:hidden;
-  overflow-y: auto;
-}
-.drawer-container {
-  position: absolute;
-  display: flex;
-  justify-content: flex-end;
-  min-width: 100%;
-  min-height: 100%;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.drawer-content {
-  padding: 0px;
-  overflow: hidden !important;
-}
-#container {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  font-size: 100%;
-  font: inherit;
-  vertical-align: baseline;
-  display: block;
-}
-
-.mdc-switch__handle::after {
-  background: green;
-}
-
-#no_mbtiles {
-  width: 100%;
-  font-size: 40px;
-  position: absolute;
-  text-align: center;
-  margin: 0 auto;
-  top: 50%;
-}
-
-.bx--toggle__switch {
-  margin-left: 4px;
-  margin-bottom: 4px;
-
-}
-/* .bx--toggle-input:checked + .bx--toggle-input__label > .bx--toggle__switch::before { */
-  /* background-color: var(--toggle-color) !important; */
-/* } */
-.bx--header-panel--expanded {
-  background-color:#000000aa !important;
-  /* width: 20rem !important; */
-}
-.bx--header {
-  background-color:#000000aa !important;
-}
-
-.bx--content {
-  background-color:transparent !important;
-}
-
-.bx--radio-button-group {
-  flex-wrap: wrap;
-}
-
-.maplibregl-compare .compare-swiper-vertical {  
+/* `!important` throughout: the plugin's stylesheet is imported from the app
+   bundle, so it lands as a <style> after this <link> and would otherwise win
+   every tie on equal specificity */
+.maplibregl-compare .compare-swiper-vertical,
+.maplibregl-compare .compare-swiper-horizontal {
+  width: 38px !important;
+  height: 38px !important;
+  margin: -19px 1px 0 !important;
   background-color: transparent !important;
   background-image: none !important;
+  box-shadow: inset 0 0 0 2px var(--accent) !important;
 }
-.light .maplibregl-compare .compare-swiper-vertical {
-    box-shadow: inset 0 0 0 2px #393939 !important;
-}
-.dark .maplibregl-compare .compare-swiper-vertical {
-    box-shadow: inset 0 0 0 2px white !important;
-}
-.light .maplibregl-compare {
-  background-color:#393939 !important;
-}
-.dark .maplibregl-compare {
-  background-color:white !important;
-}
-.dark .maplibregl-popup-content {
-  background-color:#393939 !important;
-}
-.light .maplibregl-popup-content {
-  background-color:white !important;
-}
-.dark .maplibregl-popup-tip {
-  border-top-color:#393939 !important;
-}
-.light .maplibregl-popup-tip {
-  border-top-color:white !important;
+.maplibregl-compare .compare-swiper-vertical {
+  left: -19px !important;
 }
 
-.light .mapboxgl-popup-content {
-  background-color:white !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,.1) !important;
-}
-.dark .mapboxgl-popup-content {
-  background-color:#393939 !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,.3) !important;
-}
-
-.light .mapboxgl-popup-tip {
-  border-top-color:white !important;
-}
-.dark .mapboxgl-popup-tip {
-  border-top-color:#393939 !important;
-}
-.dark .mbview_property {
-  color:white !important;
-}
-.light .mbview_property {
-  color:black !important;
-}
-/* table  {
-  overflow-x: auto;
-}
-tbody {
-  overflow-y: auto;
-} */
-
-th {
-  position: sticky !important;
-  z-index: 100 !important;
-  top: 0 !important;
-}
-
-select {
-  -webkit-appearance: none
-}
-
-.canSelectText * {
-  -webkit-touch-callout: text;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  user-select: text;
-}
-.mbview_popup *, .bx--tooltip * {
-  -webkit-touch-callout: text;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  user-select: text;
+/*
+ * The compare plugin drags from a bare `mousedown` and never calls
+ * preventDefault, so the browser starts a text selection underneath and the
+ * drag paints its way through whatever popup or control it passes over. The
+ * class is stamped for the length of the drag only — popup text stays
+ * selectable the rest of the time.
+ */
+body.swiping,
+body.swiping * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
