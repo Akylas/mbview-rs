@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.9.0](https://github.com/Akylas/mbview-rs/compare/v1.7.3...v1.9.0) (2026-08-15)
+
+
+### Features
+
+* **ci:** release from a dispatch input, and add a project site ([8fcc0ff](https://github.com/Akylas/mbview-rs/commit/8fcc0ff92f6dd6b16fabc62e386c41bc081e1feb))
+* last zoom/location is now saved/restore upon app restart ([68fd022](https://github.com/Akylas/mbview-rs/commit/68fd0221d2aed3175e5a7399456ef8fbd80f8332))
+* rebuild the UI on a custom design system and fix layer-visibility bugs ([5659c6c](https://github.com/Akylas/mbview-rs/commit/5659c6c00efc500ecffb998d27422f014d4a4e2c))
+* support MLT (MapLibre Tile) encoded mbtiles ([14236e7](https://github.com/Akylas/mbview-rs/commit/14236e7b6c86339d7a5adc79b7a88d3e9adec1dc))
+
+
+### Bug Fixes
+
+* fixed copy GeoJSON tile ([004b2a1](https://github.com/Akylas/mbview-rs/commit/004b2a16d58fa70f8988a003cc7f0f98314ba853))
+
 ## [1.8.0](https://github.com/Akylas/mbview-rs/compare/v1.7.3...v1.8.0) (2024-07-26)
 
 

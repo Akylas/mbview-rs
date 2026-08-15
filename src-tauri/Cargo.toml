@@ -1,6 +1,6 @@
 [package]
 name = "MBTilesViewer"
-version = "1.8.0"
+version = "1.9.0"
 description = "MBtiles viewer and inspector"
 authors = [ "dev@akylasfr" ]
 license = "MIT"
@@ -52,6 +52,5 @@ incremental = false
 opt-level = "s"
 strip = true
 
-# Speeds up `tauri dev` a lot: dependencies are still optimized, our crate is not.
 [profile.dev.package."*"]
 opt-level = 2
