@@ -81,7 +81,7 @@ jobs:
           # --no-git-tag-version so we don't create the tag yet; the tag and
           # commit are pushed only after a successful build (see `publish` job).
           yarn standard-version $args --skip.tag --skip.commit
-          version=$(node -p "require('./package.json').version")
+          version=$(node -p "require('@tauri-apps/toml').parse(require('fs').readFileSync('./src-tauri/Cargo.toml','utf8')).package.version")
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Prepared v$version (will commit and tag after successful build)" >> "$GITHUB_STEP_SUMMARY"
 
