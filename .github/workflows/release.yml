@@ -78,13 +78,25 @@ jobs:
             exit 0
           fi
 
-          yarn standard-version $args
+          # --no-git-tag-version so we don't create the tag yet; the tag and
+          # commit are pushed only after a successful build (see `publish` job).
+          yarn standard-version $args --skip.tag --skip.commit
           version=$(node -p "require('./package.json').version")
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Released v$version" >> "$GITHUB_STEP_SUMMARY"
+          echo "Prepared v$version (will commit and tag after successful build)" >> "$GITHUB_STEP_SUMMARY"
 
-          # the tag is what the rest of the pipeline builds from
-          git push --follow-tags origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Upload version bump as artifact
+        if: ${{ !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-bump
+          # Upload every file that standard-version touched so the publish job
+          # can apply them before committing.
+          path: |
+            package.json
+            CHANGELOG.md
+            src-tauri/Cargo.toml
+            src-tauri/Cargo.lock
 
   changelog:
     needs: [version]
@@ -146,6 +158,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Apply version bump artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          name: version-bump
+          # Overwrite the checked-out files with the bumped versions so the
+          # build uses the correct version numbers.
+          path: .
+
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-latest' # This must match the platform value defined above.
         run: |
@@ -203,3 +224,36 @@ jobs:
           releaseBody: ${{ needs.changelog.outputs.CHANGELOG }}
           releaseDraft: true
           prerelease: ${{ needs.changelog.outputs.STATUS == 'prereleased' }}
+
+  # Commit and push the version bump only after every build matrix leg succeeds.
+  # If any build fails this job is skipped and the repo is left untouched.
+  publish:
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    needs: [changelog, build-tauri]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download version bump artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: version-bump
+          path: .
+
+      - name: Commit, tag and push
+        env:
+          VERSION: ${{ needs.changelog.outputs.VERSION }}
+          TAG: ${{ needs.changelog.outputs.TAG }}
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(release): $TAG"
+          git tag "$TAG"
+          git push --follow-tags origin "HEAD:${GITHUB_REF_NAME}"
+          echo "Released $TAG" >> "$GITHUB_STEP_SUMMARY"
