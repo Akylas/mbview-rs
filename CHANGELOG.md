@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.0.0](https://github.com/Akylas/mbview-rs/compare/v1.7.3...v2.0.0) (2026-08-16)
+
+
+### Features
+
+* **ci:** release from a dispatch input, and add a project site ([8fcc0ff](https://github.com/Akylas/mbview-rs/commit/8fcc0ff92f6dd6b16fabc62e386c41bc081e1feb))
+* last zoom/location is now saved/restore upon app restart ([68fd022](https://github.com/Akylas/mbview-rs/commit/68fd0221d2aed3175e5a7399456ef8fbd80f8332))
+* rebuild the UI on a custom design system and fix layer-visibility bugs ([5659c6c](https://github.com/Akylas/mbview-rs/commit/5659c6c00efc500ecffb998d27422f014d4a4e2c))
+* support MLT (MapLibre Tile) encoded mbtiles ([14236e7](https://github.com/Akylas/mbview-rs/commit/14236e7b6c86339d7a5adc79b7a88d3e9adec1dc))
+
+
+### Bug Fixes
+
+* fixed copy GeoJSON tile ([004b2a1](https://github.com/Akylas/mbview-rs/commit/004b2a16d58fa70f8988a003cc7f0f98314ba853))
+* only commit/tag after successful tauri build ([f88befe](https://github.com/Akylas/mbview-rs/commit/f88befea6c5e9e934922e681d403dca96f79d44a))
+* publish GitHub release instead of draft in release workflow ([cd8e90c](https://github.com/Akylas/mbview-rs/commit/cd8e90c7b3ee07abe35e7c2173cfe0bdaed5f681))
+* read bumped version from Cargo.toml not package.json in version job ([971c7b9](https://github.com/Akylas/mbview-rs/commit/971c7b9746f2ec43bde125c758684717944a9866))
+* use force flag when tagging in publish job to handle existing tags ([7705034](https://github.com/Akylas/mbview-rs/commit/7705034b6bd38f3f99d99373766e2e23cced93b3))
+
 ## [1.9.2](https://github.com/Akylas/mbview-rs/compare/v1.9.1...v1.9.2) (2026-08-15)
 
 ## [1.9.1](https://github.com/Akylas/mbview-rs/compare/v1.9.0...v1.9.1) (2026-08-15)
