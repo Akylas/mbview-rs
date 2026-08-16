@@ -52,18 +52,15 @@ jobs:
       # from the repository, none of it from wherever the CLI itself was
       # fetched. So the project's own dependencies go in first and the CLI is
       # run out of them, at the version package.json pins.
-      - name: Node.js setup
-        if: github.event_name == 'workflow_dispatch'
+      - name: setup node
         uses: actions/setup-node@v7
         with:
-          node-version: 20.x
-      - name: Install pnpm
-        if: github.event_name == 'workflow_dispatch'
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-          run_install: |
-            - args: [--no-frozen-lockfile]
+          node-version: lts/*
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install deps
+        run: yarn install --immutable --silent
 
       - name: Record pre-bump commit SHA
         id: pre_bump
@@ -85,9 +82,9 @@ jobs:
           # stages the files it bumped itself. The checkout is clean, so there is
           # nothing else for it to pick up.
           if [ "$BUMP" = auto ]; then
-            pnpm exec standard-version --commit-all
+            yarn standard-version --commit-all
           else
-            pnpm exec standard-version --commit-all --release-as "$BUMP"
+            yarn standard-version --commit-all --release-as "$BUMP"
           fi
           git push --follow-tags origin "HEAD:$GITHUB_REF_NAME"
 
@@ -164,20 +161,15 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: brew install autoconf automake libtool
 
-      # node first, so the install below builds against the version the app is
-      # actually released on. No `cache:` anywhere: nothing commits a JS
-      # lockfile, and both cache implementations hash one to key the cache.
-      - name: Node.js setup
+      - name: setup node
         uses: actions/setup-node@v7
         with:
-          node-version: 20.x
-          registry-url: https://registry.npmjs.org/
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-          run_install: |
-            - args: [--no-frozen-lockfile]
+          node-version: lts/*
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install deps
+        run: yarn install --immutable --silent
 
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
