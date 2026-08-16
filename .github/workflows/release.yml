@@ -1,13 +1,12 @@
 name: Release
-
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
     inputs:
-      release_type:
-        description: 'How to bump the version'
+      bump:
+        description: 'How much to bump the version. `auto` reads the conventional commits since the last tag and decides.'
         type: choice
         default: auto
         options:
@@ -15,194 +14,177 @@ on:
           - patch
           - minor
           - major
-      dry_run:
-        description: 'Work out the next version and stop, without tagging or building'
-        type: boolean
-        default: false
-
-# a second release starting while one is mid-tag would fight over the same
-# branch, so they queue instead
-concurrency:
-  group: release
-  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Only for a manual run: bump, changelog, commit and tag. A tag push skips
-  # this and goes straight to reading the changelog.
-  version:
-    if: github.event_name == 'workflow_dispatch'
+  create-release:
     runs-on: ubuntu-latest
+    # a manual run writes the release commit and tag back to the branch
     permissions:
       contents: write
     outputs:
-      version: ${{ steps.bump.outputs.version }}
+      RELEASE_UPLOAD_ID: ${{ steps.create_release.outputs.id }}
+      RELEASE_TAG: v${{ steps.changelog_reader.outputs.version }}
+      # SHA before standard-version ran; used by the cleanup job to undo on failure
+      PRE_BUMP_SHA: ${{ steps.pre_bump.outputs.sha }}
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
-          # standard-version reads the tag history to work out the next version
+          # standard-version reads the tags and the commits since the last one
+          # to work out an `auto` bump, and there is nothing to read in a
+          # shallow clone
           fetch-depth: 0
 
-      - name: Node.js enable corepack
-        run: corepack enable
-
-      - uses: actions/setup-node@v7
+      # A tag push arrives with the version already decided and written down. A
+      # manual run has neither, so it cuts the release here: standard-version
+      # bumps src-tauri/Cargo.toml — see .versionrc.js, that file is where this
+      # project keeps its version — writes the CHANGELOG entry the next step
+      # goes looking for, commits and tags.
+      #
+      # Pushing with GITHUB_TOKEN does not start another workflow run, so the
+      # `v*` tag this creates cannot set the whole thing going a second time.
+      #
+      # standard-version is configured by .versionrc.js, which pulls in
+      # tauriVersioner.js, which pulls in @tauri-apps/toml — all of it resolved
+      # from the repository, none of it from wherever the CLI itself was
+      # fetched. So the project's own dependencies go in first and the CLI is
+      # run out of them, at the version package.json pins.
+      - name: Node.js setup
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/setup-node@v7
         with:
-          node-version: lts/*
-          cache: yarn
-          cache-dependency-path: yarn.lock
+          node-version: 20.x
+      - name: Install pnpm
+        if: github.event_name == 'workflow_dispatch'
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+          run_install: |
+            - args: [--no-frozen-lockfile]
 
-      - name: Install deps
-        run: yarn install --immutable --silent
+      - name: Record pre-bump commit SHA
+        id: pre_bump
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Bump version and changelog
-        id: bump
+      - name: Cut the release commit and tag
+        if: github.event_name == 'workflow_dispatch'
         env:
-          # `auto` lets conventional commits decide; the rest force a level
-          RELEASE_TYPE: ${{ inputs.release_type }}
-          DRY_RUN: ${{ inputs.dry_run }}
+          # through the environment rather than inlined into the script: an
+          # input is whatever the person who started the run chose
+          BUMP: ${{ inputs.bump }}
         run: |
-          set -e
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          args="--commit-all"
-          if [ "$RELEASE_TYPE" != "auto" ]; then
-            args="$args --release-as $RELEASE_TYPE"
-          fi
-          if [ "$DRY_RUN" = "true" ]; then
-            yarn standard-version $args --dry-run
-            echo "version=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # --no-git-tag-version so we don't create the tag yet; the tag and
-          # commit are pushed only after a successful build (see `publish` job).
-          yarn standard-version $args --skip.tag --skip.commit
-          version=$(node -p "require('@tauri-apps/toml').parse(require('fs').readFileSync('./src-tauri/Cargo.toml','utf8')).package.version")
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Prepared v$version (will commit and tag after successful build)" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload version bump as artifact
-        if: ${{ !inputs.dry_run }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: version-bump
-          # Upload every file that standard-version touched so the publish job
-          # can apply them before committing.
-          path: |
-            package.json
-            CHANGELOG.md
-            src-tauri/Cargo.toml
-            src-tauri/Cargo.lock
-
-  changelog:
-    needs: [version]
-    # `version` is skipped on a tag push, which would skip this too
-    if: ${{ !cancelled() && !failure() && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
-    runs-on: ubuntu-latest
-    outputs:
-      VERSION: ${{ steps.resolve.outputs.version }}
-      TAG: ${{ steps.resolve.outputs.tag }}
-      CHANGELOG: ${{ steps.changelog_reader.outputs.changes }}
-      STATUS: ${{ steps.changelog_reader.outputs.status }}
-    steps:
-      - name: Resolve the version being released
-        id: resolve
-        env:
-          BUMPED: ${{ needs.version.outputs.version }}
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="$BUMPED"
+          # --commit-all: the postchangelog hook in .versionrc.js writes the
+          # F-Droid changelog for the new versionCode, and standard-version only
+          # stages the files it bumped itself. The checkout is clean, so there is
+          # nothing else for it to pick up.
+          if [ "$BUMP" = auto ]; then
+            pnpm exec standard-version --commit-all
           else
-            version="${GITHUB_REF#refs/tags/v}"
+            pnpm exec standard-version --commit-all --release-as "$BUMP"
           fi
+          git push --follow-tags origin "HEAD:$GITHUB_REF_NAME"
+
+      - name: Work out which version is being released
+        id: tag_name
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            # a tag push says so itself
+            refs/tags/v*) version="${GITHUB_REF#refs/tags/v}" ;;
+            # otherwise it is the tag the step above just wrote
+            *) version=$(git describe --tags --abbrev=0) ;;
+          esac
+          version="${version#v}"
           if [ -z "$version" ]; then
-            echo "no version to release" >&2
+            echo "no version on the ref and no tag to read one off" >&2
             exit 1
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
+          echo "releasing $version"
+          # `set-output` was turned off on the runners in 2023
+          echo "current_version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Get Changelog Entry
         id: changelog_reader
-        uses: Akylas/changelog-reader-action@v4.0.0
+        # upstream rather than the fork: the fork is still a node12 action, and
+        # the runners no longer have a node that old
+        uses: mindsers/changelog-reader-action@v2
         with:
-          version: ${{ steps.resolve.outputs.version }}
+          version: ${{ steps.tag_name.outputs.current_version }}
           path: ./CHANGELOG.md
 
+      - name: create release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # This pulls from the "Get Changelog Entry" step above, referencing it's ID to get its outputs object.
+          # See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          tag: v${{ steps.changelog_reader.outputs.version }}
+          name: v${{ steps.changelog_reader.outputs.version }}
+          body: ${{ steps.changelog_reader.outputs.changes }}
+          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
+          # we create first the release as draft. Will be published once everything is done
+          draft: true
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   build-tauri:
-    needs: changelog
-    permissions:
-      contents: write
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
-            args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-latest' # oldest glibc we support for the AppImage/deb bundles
-            args: ''
-          - platform: 'windows-latest'
-            args: ''
-
+        platform: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-
-      - name: Apply version bump artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/download-artifact@v4
         with:
-          name: version-bump
-          # Overwrite the checked-out files with the bumped versions so the
-          # build uses the correct version numbers.
-          path: .
+          submodules: true
+          # the tag, not the commit the run started from: a manual run bumps
+          # the version after that commit, and the bundles carry it
+          ref: ${{ needs.create-release.outputs.RELEASE_TAG }}
 
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-latest' # This must match the platform value defined above.
+      # Tauri v2 links against the 4.1 webkit2gtk, not the 4.0 the v1 template
+      # installed, and against the ayatana fork of libappindicator
+      - name: Install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            libxdo-dev \
-            libssl-dev \
-            build-essential \
-            file \
-            patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
 
-      - name: Node.js enable corepack
-        run: corepack enable
+      - name: Install autotools (macOS only)
+        if: matrix.platform == 'macos-latest'
+        run: brew install autoconf automake libtool
 
-      - name: setup node
+      # node first, so the install below builds against the version the app is
+      # actually released on. No `cache:` anywhere: nothing commits a JS
+      # lockfile, and both cache implementations hash one to key the cache.
+      - name: Node.js setup
         uses: actions/setup-node@v7
         with:
-          node-version: lts/*
-          cache: yarn
-          cache-dependency-path: yarn.lock
-
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+          node-version: 20.x
+          registry-url: https://registry.npmjs.org/
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          version: 10
+          run_install: |
+            - args: [--no-frozen-lockfile]
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: 'src-tauri -> target'
-
-      - name: Install deps
-        run: yarn install --immutable --silent
+          workspaces: "src-tauri -> target"
 
       - uses: tauri-apps/tauri-action@v1
         env:
@@ -218,58 +200,68 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_PROVIDER_SHORT_NAME: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
         with:
-          args: ${{ matrix.args }}
-          tagName: ${{ needs.changelog.outputs.TAG }}
-          releaseName: ${{ needs.changelog.outputs.TAG }}
-          releaseBody: ${{ needs.changelog.outputs.CHANGELOG }}
-          releaseDraft: false
-          prerelease: ${{ needs.changelog.outputs.STATUS == 'prereleased' }}
+          releaseId: ${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}
 
-  # If any build matrix leg fails, delete the (partially-created) GitHub release
-  # so we don't leave a broken release behind.
-  cleanup-release:
-    if: ${{ failure() && needs.build-tauri.result != 'skipped' }}
-    needs: [changelog, build-tauri]
+  update-release:
     runs-on: ubuntu-latest
+    needs: [create-release, build-tauri]
+    if: ${{ always() && needs.create-release.result == 'success' && needs.build-tauri.result == 'success' }}
+    steps:
+      - name: Publish release as latest
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ needs.create-release.outputs.RELEASE_TAG }}
+          draft: false
+          makeLatest: true
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+
+  # If any build job fails, delete the draft release and clean up the tag. For
+  # workflow_dispatch runs, also revert the version-bump commit that was already
+  # pushed. Tag-push runs have nothing to revert, but we still want the draft
+  # release and the tag gone so the version can be re-released later.
+  cleanup-on-failure:
+    runs-on: ubuntu-latest
+    needs: [create-release, build-tauri]
+    if: >-
+      ${{ always()
+          && needs.create-release.result == 'success'
+          && (needs.build-tauri.result == 'failure') }}
     permissions:
       contents: write
     steps:
-      - name: Delete failed release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.changelog.outputs.TAG }}
-        run: |
-          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-
-  # Commit and push the version bump only after every build matrix leg succeeds.
-  # If any build fails this job is skipped and the repo is left untouched.
-  publish:
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
-    needs: [changelog, build-tauri]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Download version bump artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: version-bump
-          path: .
-
-      - name: Commit, tag and push
+      - name: Delete tag and revert version bump commit (workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch' && needs.create-release.outputs.PRE_BUMP_SHA != ''
         env:
-          VERSION: ${{ needs.changelog.outputs.VERSION }}
-          TAG: ${{ needs.changelog.outputs.TAG }}
+          RELEASE_TAG: ${{ needs.create-release.outputs.RELEASE_TAG }}
+          PRE_BUMP_SHA: ${{ needs.create-release.outputs.PRE_BUMP_SHA }}
         run: |
-          set -e
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore(release): $TAG"
-          git tag -f "$TAG"
-          git push --follow-tags -f origin "HEAD:${GITHUB_REF_NAME}"
-          echo "Released $TAG" >> "$GITHUB_STEP_SUMMARY"
+          # Delete the tag remotely (ignore error if it was never pushed or already gone)
+          git push --delete origin "$RELEASE_TAG" || true
+          # Force-reset the branch to the commit before standard-version ran
+          git push --force origin "$PRE_BUMP_SHA:$GITHUB_REF_NAME"
+      - name: Delete tag (tag-push only)
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          RELEASE_TAG: ${{ needs.create-release.outputs.RELEASE_TAG }}
+        run: |
+          set -euo pipefail
+          # Delete the tag remotely (ignore error if it was never pushed or already gone)
+          git push --delete origin "$RELEASE_TAG" || true
+      - name: Delete the draft GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          release_id="${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}"
+          if [ -n "$release_id" ]; then
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$release_id" || true
+          fi
