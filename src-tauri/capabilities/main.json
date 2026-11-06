@@ -15,6 +15,7 @@
     "core:window:allow-set-title",
     "core:webview:allow-internal-toggle-devtools",
     "dialog:allow-open",
+    "dialog:allow-message",
     "opener:default",
     "fs:default",
     "fs:allow-read-dir",

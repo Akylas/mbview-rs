@@ -7,9 +7,20 @@
   import type { Map } from 'maplibre-gl';
   import { createEventDispatcher } from 'svelte';
   import { _ } from 'svelte-i18n';
-  import { applyOpacity, applyVisibility, savePrefs, type SourceEntry } from '../lib/sources';
+  import {
+    applyOpacity,
+    applyTerrain,
+    applyVisibility,
+    isDemSource,
+    MAX_EXAGGERATION,
+    MIN_EXAGGERATION,
+    savePrefs,
+    TERRAIN_PITCH,
+    type SourceEntry,
+  } from '../lib/sources';
   import type { GeometryFilter } from '../lib/settings';
   import Slider from './ui/Slider.svelte';
+  import Toggle from './ui/Toggle.svelte';
 
   export let source: SourceEntry;
   export let map: Map;
@@ -28,8 +39,11 @@
     : source.layers;
   $: hiddenCount = source.layers.filter((layer) => !layer.visible).length;
 
+  $: isDem = isDemSource(source);
+
   function commit() {
     applyVisibility(map, source, filter);
+    applyTerrain(map, source);
     savePrefs(source);
     // the array in the parent holds the same objects, but svelte needs telling
     source = source;
@@ -52,6 +66,21 @@
     // surprise wipe of the layers you cannot see
     visibleLayers.forEach((layer) => (layer.visible = visible));
     commit();
+  }
+
+  function onTerrainToggle() {
+    applyTerrain(map, source);
+    // switching 3D on from a flat map is pointless to look at straight down
+    if (source.terrain && source.visible && map?.getPitch() < 30) {
+      map.easeTo({ pitch: TERRAIN_PITCH, duration: 600 });
+    }
+    savePrefs(source);
+    source = source;
+  }
+
+  function onExaggeration() {
+    applyTerrain(map, source);
+    savePrefs(source);
   }
 
   function onOpacity() {
@@ -151,6 +180,26 @@
         bind:value={source.opacity}
         on:input={onOpacity}
       />
+
+      {#if isDem}
+        <Toggle
+          label={$_('terrain_3d')}
+          description={$_('terrain_3d_help')}
+          bind:checked={source.terrain}
+          on:change={onTerrainToggle}
+        />
+        <Slider
+          compact
+          label={$_('exaggeration')}
+          readout="×{source.terrainExaggeration.toFixed(1)}"
+          min={MIN_EXAGGERATION}
+          max={MAX_EXAGGERATION}
+          step={0.1}
+          disabled={!source.terrain}
+          bind:value={source.terrainExaggeration}
+          on:input={onExaggeration}
+        />
+      {/if}
 
       {#if source.vector}
         <div class="layers-head">

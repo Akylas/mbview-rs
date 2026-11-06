@@ -28,7 +28,7 @@ No docker, no tile server, no upload — a desktop app that reads the file where
 ## What it is
 
 MBTiles Viewer is a small cross-platform desktop app for **inspecting and comparing `.mbtiles`
-files**. Point it at a file and it draws every layer in its own colour, lists them in a panel you
+and `.pmtiles` files**. Point it at a file and it draws every layer in its own colour, lists them in a panel you
 can toggle and reorder, and lets you click any feature to read its attributes.
 
 It is built for the moment after a tile build finishes and you need to answer *did that actually
@@ -43,7 +43,9 @@ work?* — before wiring the tileset into anything.
 
 |                            |                                                                                                 |
 | -------------------------- | ----------------------------------------------------------------------------------------------- |
+| **MBTiles and PMTiles**    | Open either format; PMTiles (v3, gzip or uncompressed) is read straight from the archive, no server involved |
 | **Vector and raster**      | MVT (`pbf`) and [MLT](https://github.com/maplibre/maplibre-tile-spec) vector tiles, plus raster tilesets — optionally drawn as hillshade or terrain-RGB |
+| **3D terrain**             | Add a Mapbox terrain-RGB or Terrarium tileset and the map is extruded with it: tilt up to 85°, adjust the exaggeration per file, with a sky on the horizon. Tilesets that declare their `encoding` are picked up automatically |
 | **Every layer, coloured**  | A stable colour per source-layer name, so `water` is blue and `transportation` is orange in every file you open |
 | **Layer control**          | Show/hide a whole file or one of its layers, set per-file opacity, filter to points, lines or polygons |
 | **Stacking order**         | Drag files to restack them — the panel reads top-to-bottom exactly like the map draws            |

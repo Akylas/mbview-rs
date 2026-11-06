@@ -8,7 +8,7 @@
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { dirname, resolve, resourceDir } from '@tauri-apps/api/path';
   import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { message, open } from '@tauri-apps/plugin-dialog';
   import { readTextFile } from '@tauri-apps/plugin-fs';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import Copy from 'carbon-icons-svelte/lib/Copy.svelte';
@@ -21,7 +21,7 @@
   import SplitScreen from 'carbon-icons-svelte/lib/SplitScreen.svelte';
   import Table from 'carbon-icons-svelte/lib/Table.svelte';
   import View from 'carbon-icons-svelte/lib/View.svelte';
-  import { Map, NavigationControl, ScaleControl } from 'maplibre-gl';
+  import { Map, NavigationControl, ScaleControl, TerrainControl } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
   import Pbf from 'pbf';
   import { onDestroy, onMount, tick } from 'svelte';
@@ -34,10 +34,21 @@
     applyBackground,
     applyOpacity,
     applyOrder,
+    applySky,
+    applyTerrain,
     applyVisibility,
     boundsOf,
+    detectTileSize,
+    isDemSource,
+    isTerrainSuspended,
     makeSource,
+    MAX_PITCH,
     removeSourceFromMap,
+    savePrefs,
+    terrainOptions,
+    terrainOwner,
+    TERRAIN_PITCH,
+    type DemEncoding,
     type MapKey,
     type SourceEntry,
   } from '../lib/sources';
@@ -83,6 +94,10 @@
   let savedZoom = readJSON<number | null>('mbview.zoom', null);
   let savedCenter = readJSON<{ lat: number; lng: number } | null>('mbview.center', null);
   let savedSlider = readJSON<number | null>('mbview.slider', null);
+  // read before anything can overwrite it: the reactive save below runs on mount
+  const savedActiveKey = readJSON<MapKey>('mbview.activeKey', 'main');
+  let savedPitch = readJSON<number>('mbview.pitch', 0);
+  let savedBearing = readJSON<number>('mbview.bearing', 0);
 
   let unlisteners: UnlistenFn[] = [];
 
@@ -141,36 +156,79 @@
     layer_type?: string;
   }
 
+  /** How a file was opened: what a reload needs to rebuild the same layer. */
+  interface OpenOptions {
+    path: string;
+    sourceType?: string;
+    layerType?: string;
+    demEncoding?: DemEncoding;
+  }
+
+  function optionsOf(source: SourceEntry): OpenOptions {
+    return {
+      path: source.path,
+      sourceType: source.sourceType,
+      layerType: source.layerType,
+      demEncoding: isDemSource(source) ? source.demEncoding : undefined,
+    };
+  }
+
+  /**
+   * Files that were open last time but would not open now (moved, on a drive that is not
+   * mounted). They stay in the saved session, below what did open, so one missing disk does not
+   * quietly erase part of a layout.
+   */
+  let unrestored: Record<MapKey, OpenOptions[]> = { main: [], secondary: [] };
+
+
+
   /** Everything currently open, so the next launch comes back the same. */
   function persistSession() {
     if (restoring) return;
+    const keep = (key: MapKey, open: SourceEntry[]) =>
+      unrestored[key].filter((entry) => !open.some((source) => source.path === entry.path));
     writeJSON('mbview.open', {
-      main: mainSources.map((source) => source.path),
-      secondary: secondarySources.map((source) => source.path),
+      main: [...mainSources.map(optionsOf), ...keep('main', mainSources)],
+      secondary: [...secondarySources.map(optionsOf), ...keep('secondary', secondarySources)],
     });
   }
 
+  // which map the panel was pointed at; applied once the session is back, see restoreSession
+  $: if (!restoring) writeJSON('mbview.activeKey', activeKey);
+
+  /** Older versions stored bare paths; newer ones store how each file was opened. */
+  function asOptions(entry: string | OpenOptions): OpenOptions {
+    return typeof entry === 'string' ? { path: entry } : entry;
+  }
+
   async function restoreSession() {
-    const stored = readJSON<{ main: string[]; secondary: string[] }>('mbview.open', {
-      main: [],
-      secondary: [],
-    });
+    const stored = readJSON<{ main: (string | OpenOptions)[]; secondary: (string | OpenOptions)[] }>(
+      'mbview.open',
+      { main: [], secondary: [] }
+    );
     // migration from the single-file keys this app used to write
     const legacyMain = localStorage.getItem('currentMBtiles');
-    const main = stored.main?.length ? stored.main : legacyMain ? [legacyMain] : [];
-    const secondary = stored.secondary ?? [];
+    const main = (stored.main?.length ? stored.main : legacyMain ? [legacyMain] : []).map(asOptions);
+    const secondary = (stored.secondary ?? []).map(asOptions);
     if (!main.length && !secondary.length) return;
 
     restoring = true;
+    unrestored = { main: [], secondary: [] };
     try {
       // Sequential, and bottom-up: each source is added on top of the stack, so
       // replaying the saved top-first list in reverse rebuilds the same order.
       // Concurrent setups would race, since the backend answers on an event.
-      for (const path of main.slice().reverse()) await setupMBtiles({ path, key: 'main' });
-      for (const path of secondary.slice().reverse())
-        await setupMBtiles({ path, key: 'secondary' });
+      for (const options of main.slice().reverse()) {
+        if (!(await setupMBtiles({ ...options, key: 'main' }))) unrestored.main.unshift(options);
+      }
+      for (const options of secondary.slice().reverse()) {
+        if (!(await setupMBtiles({ ...options, key: 'secondary' })))
+          unrestored.secondary.unshift(options);
+      }
     } finally {
       restoring = false;
+      // B only exists if something opened on it
+      activeKey = savedActiveKey === 'secondary' && secondaryMap ? 'secondary' : 'main';
       persistSession();
     }
   }
@@ -184,31 +242,38 @@
    * A plain record rather than a `Map`, whose name maplibre has taken here.
    */
   const pending: Record<string, () => void> = {};
+  /** What each in-flight open asked for beyond what the backend echoes back. */
+  const pendingOptions: Record<string, { demEncoding?: DemEncoding }> = {};
 
+  /** Returns whether the file ended up on a map. */
   async function setupMBtiles({
     path,
     key = 'main',
     sourceType,
     layerType,
+    demEncoding,
   }: {
     path: string;
     key?: MapKey;
     sourceType?: string;
     layerType?: string;
-  }) {
+    demEncoding?: DemEncoding;
+  }): Promise<boolean> {
     const sources = key === 'secondary' ? secondarySources : mainSources;
-    if (sources.some((source) => source.path === path)) return;
+    if (sources.some((source) => source.path === path)) return true;
 
     const token = `${key}:${path}`;
     const done = new Promise<void>((resolveDone) => {
       pending[token] = resolveDone;
+      pendingOptions[token] = { demEncoding };
       // never leave the restore loop hanging on a file the backend rejected
       setTimeout(() => {
         if (pending[token]) {
           delete pending[token];
+          delete pendingOptions[token];
           resolveDone();
         }
-      }, 10000);
+      }, 30000);
     });
 
     try {
@@ -216,30 +281,56 @@
     } catch (error) {
       console.error('setup_mbtiles failed', path, error);
       delete pending[token];
-      return;
+      delete pendingOptions[token];
+      // a restore replays old files quietly; only a file the user just asked for gets a dialog
+      if (!restoring) {
+        message(`${basename(path)}\n\n${error}`, { title: $_('open_failed'), kind: 'error' }).catch(
+          () => undefined
+        );
+      }
+      return false;
     }
     await done;
+    // the event can arrive and still not end in a source on the map (a bad tiles.json, say)
+    const opened = key === 'secondary' ? secondarySources : mainSources;
+    return opened.some((source) => source.path === path);
+  }
+
+  function basename(path: string) {
+    return path.split(/[\\/]/).pop() || path;
   }
 
   let lastFolder: string = localStorage.getItem('lastOpenFolder');
+
+  const TILE_EXTENSIONS = ['mbtiles', 'etiles', 'pmtiles'];
 
   async function addMBTiles({
     key = 'main',
     sourceType,
     layerType,
+    demEncoding,
     path,
   }: {
     key?: MapKey;
     sourceType?: string;
     layerType?: string;
+    demEncoding?: DemEncoding;
     path?: string;
   }) {
     try {
       const chosen =
         path ??
-        (await open({ multiple: false, directory: false, defaultPath: lastFolder }));
+        (await open({
+          multiple: false,
+          directory: false,
+          defaultPath: lastFolder,
+          filters: [
+            { name: 'Tiles', extensions: TILE_EXTENSIONS },
+            { name: '*', extensions: ['*'] },
+          ],
+        }));
       if (!chosen || typeof chosen !== 'string') return;
-      await setupMBtiles({ path: chosen, key, sourceType, layerType });
+      if (!(await setupMBtiles({ path: chosen, key, sourceType, layerType, demEncoding }))) return;
       rememberRecent(chosen);
       lastFolder = await dirname(chosen);
       localStorage.setItem('lastOpenFolder', lastFolder);
@@ -257,12 +348,21 @@
       const sources = key === 'secondary' ? secondarySources : mainSources;
       if (sources.some((source) => source.path === path)) return;
 
-      const data = await (await fetch(json_url)).json();
+      const response = await fetch(json_url);
+      if (!response.ok) throw new Error(`tiles.json: ${response.status}`);
+      const data = await response.json();
       const source = makeSource(
-        { path, sourceType: source_type, layerType: layer_type },
+        {
+          path,
+          sourceType: source_type,
+          layerType: layer_type,
+          demEncoding: pendingOptions[token]?.demEncoding,
+        },
         data,
         $resolvedTheme === 'dark'
       );
+      // raster tiles come in 256 and 512; maplibre has to be told which
+      if (!source.vector && !source.tileSize) source.tileSize = await detectTileSize(source);
 
       if (key === 'secondary') {
         if (!mainMap) return; // B only exists next to A
@@ -280,12 +380,13 @@
         }
         await attachSource(mainMap, source, json_url);
         mainSources = [source, ...mainSources];
-        if (first && !savedCenter) fitTo(source);
+        if (first && !savedCenter) fitTo(source, tiltFor(source));
       }
       persistSession();
     } catch (error) {
       console.error('onMBTilesSet failed', payload, error);
     } finally {
+      delete pendingOptions[token];
       if (resolveDone) {
         delete pending[token];
         resolveDone();
@@ -293,8 +394,24 @@
     }
   }
 
+  /** Maps whose style has finished loading once, which is all adding a source or layer needs. */
+  const styled = new WeakSet<object>();
+
+  /**
+   * Resolves once `map` can take sources and layers.
+   *
+   * Not `isStyleLoaded()`: that is false whenever any source is still fetching tiles, and the
+   * `load` event it would then wait for only ever fires once, at the start. A map busy with its
+   * first file's tiles would make every later file wait for an event that never comes.
+   */
   function whenReady(map: Map): Promise<void> {
-    return map.isStyleLoaded() ? Promise.resolve() : new Promise((done) => map.once('load', () => done()));
+    if (styled.has(map)) return Promise.resolve();
+    return new Promise((done) =>
+      map.once('load', () => {
+        styled.add(map);
+        done();
+      })
+    );
   }
 
   async function attachSource(map: Map, source: SourceEntry, jsonUrl: string) {
@@ -305,6 +422,88 @@
     applyOpacity(map, source);
     // a source added later belongs on top, which is where the panel shows it
     applyOrder(map, [source, ...(map === secondaryMap ? secondarySources : mainSources)]);
+    refreshTerrain(map, [source, ...(map === secondaryMap ? secondarySources : mainSources)]);
+    addTerrainControl(map, source);
+    // relief is invisible from straight above: tilt the camera, unless a session is
+    // coming back and its saved camera already says how the user left it
+    if (!restoring && source.terrain && source.visible) {
+      const pitch = tiltFor(source);
+      if (pitch && map.getPitch() < 30) map.easeTo({ pitch, duration: 600 });
+    }
+  }
+
+  /** Re-applies terrain for every elevation file of a map, whose zoom cap depends on all of them. */
+  function refreshTerrain(map: Map, sources: SourceEntry[]) {
+    sources.filter(isDemSource).forEach((dem) => applyTerrain(map, dem, sources));
+  }
+
+  /**
+   * maplibre's own 3D button, so terrain can be flipped from the map itself. It only drives
+   * `setTerrain`, so `onTerrainChanged` carries what it did back into the file's own switch.
+   */
+  const terrainControls = new WeakMap<object, Record<string, TerrainControl>>();
+
+  function addTerrainControl(map: Map, source: SourceEntry) {
+    if (!isDemSource(source)) return;
+    const controls = terrainControls.get(map) ?? {};
+    terrainControls.set(map, controls);
+    if (controls[source.id]) return;
+    const options = terrainOptions(map, source);
+    if (!options) return;
+    // the live options object: it is updated when the twin source is swapped
+    controls[source.id] = new TerrainControl(options);
+    map.addControl(controls[source.id], 'top-right');
+  }
+
+  function removeTerrainControl(map: Map, source: SourceEntry) {
+    const controls = terrainControls.get(map);
+    if (!controls?.[source.id]) return;
+    try {
+      map.removeControl(controls[source.id]);
+    } catch (error) {
+      /* the map may already be gone */
+    }
+    delete controls[source.id];
+  }
+
+  function onTerrainChanged(key: MapKey, map: Map) {
+    // a pause we caused ourselves, not a switch by the user
+    if (isTerrainSuspended()) return;
+    const sources = key === 'secondary' ? secondarySources : mainSources;
+    const owner = terrainOwner(map, sources);
+    if (owner) {
+      // switched on from the map's button (or by us, which changes nothing)
+      if (owner.terrain && owner.visible) return;
+      owner.terrain = true;
+      if (!owner.visible) {
+        owner.visible = true;
+        applyVisibility(map, owner, $settings.geometryFilter);
+      }
+      savePrefs(owner);
+      // the button turned it on with the exaggeration it was built with
+      applyTerrain(map, owner);
+      if (map.getPitch() < 30) map.easeTo({ pitch: TERRAIN_PITCH, duration: 600 });
+    } else {
+      // switched off from the map's button: every file that thought it was extruding stops
+      let changed = false;
+      sources.forEach((source) => {
+        if (isDemSource(source) && source.terrain && source.visible) {
+          source.terrain = false;
+          savePrefs(source);
+          changed = true;
+        }
+      });
+      if (!changed) return;
+    }
+    applySky(map);
+    // the panel holds these same objects; svelte only needs telling
+    if (key === 'secondary') secondarySources = secondarySources;
+    else mainSources = mainSources;
+  }
+
+  /** The pitch a source wants on arrival: tilted for terrain, untouched otherwise. */
+  function tiltFor(source: SourceEntry) {
+    return isDemSource(source) && source.terrain && source.visible ? TERRAIN_PITCH : 0;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -337,8 +536,18 @@
    * works for a vector file, so a raster one falls back to a plain backdrop
    * rather than a style whose every layer would fail to load.
    */
+  /**
+   * Whether the maps on screen were built with a basemap in them. A hidden basemap is not free: it
+   * is a second source reading the same file plus dozens of layers, and in the WebKit webview it
+   * corrupts the 3D terrain (walls at tile edges). So while the basemap is off it is simply not
+   * loaded, and switching it on rebuilds the maps.
+   */
+  let mapsHaveBasemap = false;
+  const wantsBasemap = () => $settings.showBackground && $settings.basemap !== 'none';
+
   async function buildStyle(source: SourceEntry, jsonUrl: string) {
-    if ($settings.basemap === 'none') return blankStyle();
+    mapsHaveBasemap = wantsBasemap();
+    if (!wantsBasemap()) return blankStyle();
     try {
       const path = await resolve(await resourceDir(), `_up_/resources/styles/${$settings.basemap}.json`);
       const raw = await readTextFile(path);
@@ -379,11 +588,16 @@
       style: style as any,
       center: center as any,
       zoom,
+      pitch: key === 'main' ? savedPitch : mainMap.getPitch(),
+      bearing: key === 'main' ? savedBearing : mainMap.getBearing(),
+      // terrain needs room to tilt; the default stops at 60 degrees
+      maxPitch: MAX_PITCH,
       interactive: true,
       attributionControl: { compact: true },
     });
     map.showTileBoundaries = $settings.showTileBoundaries;
     map.showCollisionBoxes = $settings.showCollisionBoxes;
+    map.on('terrain', () => onTerrainChanged(key, map));
     // maplibre's own controls, so they inherit the same stylesheet the rest of
     // the map chrome does instead of arriving unstyled from a mapbox plugin
     map.addControl(
@@ -406,8 +620,12 @@
     map.on('moveend', () => {
       savedZoom = map.getZoom();
       savedCenter = map.getCenter();
+      savedPitch = map.getPitch();
+      savedBearing = map.getBearing();
       writeJSON('mbview.zoom', savedZoom);
       writeJSON('mbview.center', { lat: savedCenter.lat, lng: savedCenter.lng });
+      writeJSON('mbview.pitch', savedPitch);
+      writeJSON('mbview.bearing', savedBearing);
     });
   }
 
@@ -491,6 +709,12 @@
     secondaryFeatures = [];
   }
 
+  /** The swiper is dragged by the compare plugin, which tells nobody: read it when the app goes. */
+  function saveSlider() {
+    const position = (compareMap as any)?.currentPosition;
+    if (typeof position === 'number') writeJSON('mbview.slider', position);
+  }
+
   function closeCompare() {
     document.body.classList.remove('swiping');
     if (compareMap) {
@@ -525,7 +749,14 @@
 
   function removeSource(key: MapKey, source: SourceEntry) {
     const map = mapFor(key);
-    if (map) removeSourceFromMap(map, source);
+    if (map) {
+      removeTerrainControl(map, source);
+      removeSourceFromMap(map, source);
+      refreshTerrain(
+        map,
+        (key === 'secondary' ? secondarySources : mainSources).filter((entry) => entry.id !== source.id)
+      );
+    }
     if (key === 'secondary') {
       secondarySources = secondarySources.filter((entry) => entry.id !== source.id);
       if (secondarySources.length === 0) closeCompare();
@@ -555,12 +786,14 @@
 
   /** Re-open every file from scratch, keeping order, camera and split. */
   async function reloadAll() {
-    const mainPaths = mainSources.map((source) => source.path);
-    const secondaryPaths = secondarySources.map((source) => source.path);
+    const mainPaths = mainSources.map(optionsOf);
+    const secondaryPaths = secondarySources.map(optionsOf);
     if (compareMap) savedSlider = (compareMap as any).currentPosition ?? savedSlider;
     if (mainMap) {
       savedZoom = mainMap.getZoom();
       savedCenter = mainMap.getCenter();
+      savedPitch = mainMap.getPitch();
+      savedBearing = mainMap.getBearing();
     }
     restoring = true;
     clearMaps();
@@ -568,23 +801,29 @@
     secondarySources = [];
     await tick();
     try {
-      for (const path of mainPaths.slice().reverse()) await setupMBtiles({ path, key: 'main' });
-      for (const path of secondaryPaths.slice().reverse())
-        await setupMBtiles({ path, key: 'secondary' });
+      for (const options of mainPaths.slice().reverse())
+        await setupMBtiles({ ...options, key: 'main' });
+      for (const options of secondaryPaths.slice().reverse())
+        await setupMBtiles({ ...options, key: 'secondary' });
     } finally {
       restoring = false;
       persistSession();
     }
   }
 
-  function fitTo(source: SourceEntry) {
+  function fitTo(source: SourceEntry, pitch?: number) {
     const bounds = boundsOf(source);
     const map = mapFor(activeKey) ?? mainMap;
     if (!map) return;
+    const tilt = pitch ? { pitch } : {};
     if (bounds) {
-      map.fitBounds(bounds as any, { padding: 40, duration: 400 });
+      map.fitBounds(bounds as any, { padding: 40, duration: 400, ...tilt });
     } else if (source.center?.length >= 2) {
-      map.flyTo({ center: [source.center[0], source.center[1]], zoom: source.center[2] ?? 10 });
+      map.flyTo({
+        center: [source.center[0], source.center[1]],
+        zoom: source.center[2] ?? 10,
+        ...tilt,
+      });
     }
   }
 
@@ -611,6 +850,10 @@
   $: {
     const on = $settings.showBackground;
     [mainMap, secondaryMap].forEach((map) => map && applyBackground(map, on));
+  }
+  // the basemap is only in the style while it is wanted; see `mapsHaveBasemap`
+  $: if (mainMap && !restoring && (($settings.showBackground && $settings.basemap !== 'none') !== mapsHaveBasemap)) {
+    reloadAll();
   }
   $: {
     // with no basemap the backdrop is ours to keep in step with the theme,
@@ -816,7 +1059,7 @@
   let secondaryPoint = { x: 0, y: 0 };
 </script>
 
-<svelte:window on:keydown={onKeydown} on:resize={resizeMaps} />
+<svelte:window on:keydown={onKeydown} on:resize={resizeMaps} on:pagehide={saveSlider} />
 
 <div class="app">
   <header class="toolbar">
@@ -907,7 +1150,7 @@
     <div class="stage">
       <div class="maps">
         <FileDrop
-          extensions={['mbtiles', 'etiles']}
+          extensions={TILE_EXTENSIONS}
           handleFiles={(paths) => paths.forEach((path) => addMBTiles({ key: activeKey, path }))}
           let:files
         >

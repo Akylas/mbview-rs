@@ -10,6 +10,7 @@
   import type { Map } from 'maplibre-gl';
   import { createEventDispatcher } from 'svelte';
   import { _ } from 'svelte-i18n';
+  import { persisted } from '../lib/persisted';
   import { settings } from '../lib/settings';
   import { basename, type SourceEntry } from '../lib/sources';
   import SourceCard from './SourceCard.svelte';
@@ -24,7 +25,8 @@
 
   let cardEls: HTMLElement[] = [];
   let dragIndex = -1;
-  let expanded: Record<string, boolean> = {};
+  /** which cards are open, by source id (a hash of the path), so a relaunch finds them as left */
+  const expanded = persisted<Record<string, boolean>>('mbview.expanded', {});
 
   /* ---------------------------------------------------------------------- */
   /* reordering                                                             */
@@ -127,7 +129,7 @@
           {source}
           {map}
           filter={$settings.geometryFilter}
-          bind:expanded={expanded[source.id]}
+          bind:expanded={$expanded[source.id]}
           dragging={dragIndex === index}
           on:dragstart={(event) => startDrag(index, event.detail.event, event.detail.node)}
           on:menu={(event) => openMenu(source, event.detail)}
@@ -161,6 +163,16 @@
   <MenuItem
     label={$_('add_terrain_rgb')}
     on:click={() => dispatch('add', { sourceType: 'raster-dem', layerType: 'raster' })}
+  />
+  <MenuItem
+    label={$_('add_terrain_3d')}
+    on:click={() =>
+      dispatch('add', { sourceType: 'raster-dem', layerType: 'hillshade', demEncoding: 'mapbox' })}
+  />
+  <MenuItem
+    label={$_('add_terrarium_3d')}
+    on:click={() =>
+      dispatch('add', { sourceType: 'raster-dem', layerType: 'hillshade', demEncoding: 'terrarium' })}
   />
   {#if $settings.recent.length}
     {#each $settings.recent.slice(0, 8) as path (path)}
