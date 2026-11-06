@@ -87,6 +87,21 @@ body {
 .maplibregl-popup-tip {
   display: none;
 }
+.map_popup .maplibregl-popup-close-button {
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 18px;
+}
+.map_popup .maplibregl-popup-close-button:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
 .map_popup {
   max-width: min(360px, 80vw) !important;
 }

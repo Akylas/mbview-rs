@@ -5,8 +5,8 @@ use regex::Regex;
 use serde_json::json;
 use http_body_util::Full;
 use crate::errors::Result;
-use crate::tiles::{get_data, get_tile_data};
-use crate::utils::{decode, get_blank_image, get_data_format, DataFormat};
+use crate::tiles::{get_data, inflate_vector};
+use crate::utils::DataFormat;
 
 type ReplyBody = Full<Bytes>;
 lazy_static! {
@@ -22,9 +22,12 @@ static INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
 static NOT_FOUND: &[u8] = b"Not Found";
 static NO_CONTENT: &[u8] = b"";
 
+// Every answer carries the CORS header, empty ones included: the webview is another origin than
+// this server, and a tile that is simply absent must read as "no tile", not as a blocked request.
 fn not_found() -> Response<ReplyBody> {
   Response::builder()
     .status(StatusCode::NOT_FOUND)
+    .header("Access-Control-Allow-Origin", "*")
     .body(Full::new(NOT_FOUND.into()))
     .unwrap()
 }
@@ -32,6 +35,7 @@ fn not_found() -> Response<ReplyBody> {
 fn no_content() -> Response<ReplyBody> {
   Response::builder()
     .status(StatusCode::NO_CONTENT)
+    .header("Access-Control-Allow-Origin", "*")
     .body(Full::new(NO_CONTENT.into()))
     .unwrap()
 }
@@ -60,119 +64,232 @@ fn get_host(req: &Request<hyper::body::Incoming>) -> Option<&str> {
 pub async fn get_service(request: Request<hyper::body::Incoming>) -> Result<Response<ReplyBody>> {
   let uri = request.uri();
   let path = uri.path();
-  // println!("get_service {}", path);
 
-  match TILE_URL_RE.captures(path) {
+  if let Some(matches) = TILE_URL_RE.captures(path) {
+    let tile_path = matches.name("tile_path").unwrap().as_str().to_string();
+    // anything that does not parse is a request for a tile that cannot exist
+    let (z, x, y) = match (
+      matches.name("z").unwrap().as_str().parse::<u32>(),
+      matches.name("x").unwrap().as_str().parse::<u32>(),
+      matches.name("y").unwrap().as_str().parse::<u32>(),
+    ) {
+      (Ok(z), Ok(x), Ok(y)) => (z, x, y),
+      _ => return Ok(not_found()),
+    };
+    let tile_meta = match get_data(&tile_path) {
+      Some(tile_meta) => tile_meta,
+      None => return Ok(not_found()),
+    };
+    let data_format = matches.name("format").unwrap().as_str();
+    let response = Response::builder();
+
+    // `Err` is a file that went bad under us (truncated, rebuilt): serve it as an empty tile
+    // rather than taking the connection, or the app, down with it.
+    let stored = tile_meta.get_tile(z, x, y).unwrap_or_else(|err| {
+      println!("tile {}/{}/{} of {}: {}", z, x, y, tile_meta.id, err);
+      None
+    });
+
+    return match data_format {
+      // vector tiles are stored gzipped, and are served uncompressed as we set no Content-Encoding
+      "pbf" | "mlt" => match stored.map(inflate_vector) {
+        Some(Ok(data)) => Ok(
+          response
+            .header(CONTENT_TYPE, DataFormat::new(data_format).content_type())
+            .header("Access-Control-Allow-Origin", "*")
+            .body(From::from(data))
+            .unwrap(),
+        ),
+        Some(Err(err)) => {
+          println!("tile {}/{}/{} of {}: {}", z, x, y, tile_meta.id, err);
+          Ok(no_content())
+        }
+        None => Ok(no_content()),
+      },
+      _ => {
+        // A 404, not a blank image: maplibre then falls back to a parent tile, which is right for
+        // rasters, and for elevation a fake "empty" tile would decode as a pit thousands of metres deep.
+        let data = match stored {
+          Some(data) => data,
+          None => return Ok(not_found()),
+        };
+        Ok(
+          response
+            .header(CONTENT_TYPE, DataFormat::new(data_format).content_type())
+            .header("Access-Control-Allow-Origin", "*")
+            .body(From::from(Bytes::from(data)))
+            .unwrap(),
+        )
+      }
+    };
+  }
+
+  match META_URL_RE.captures(path) {
     Some(matches) => {
-      let tile_path = matches.name("tile_path").unwrap().as_str().to_string();
-      let tile_meta = get_data(&tile_path).unwrap();
-      let z = matches.name("z").unwrap().as_str().parse::<u32>().unwrap();
-      let x = matches.name("x").unwrap().as_str().parse::<u32>().unwrap();
-      let y = matches.name("y").unwrap().as_str().parse::<u32>().unwrap();
-      let y: u32 = (1 << z) - 1 - y;
-      let data_format = matches.name("format").unwrap().as_str();
-      // For future use
-      let _query_string = match matches.name("query") {
-        Some(q) => q.as_str(),
-        None => "",
+      let host = match get_host(&request) {
+        Some(host) => host,
+        None => return Ok(not_found()),
       };
-
-      let response = Response::builder();
-
-      return match data_format {
-        // vector tiles are stored gzipped, and are served uncompressed as we set no Content-Encoding
-        "pbf" | "mlt" => match get_tile_data(&tile_meta.connection_pool.get().unwrap(), z, x, y) {
-          Ok(data) => {
-            let data_in_format = get_data_format(&data);
-            return Ok(
-              response
-                .header(CONTENT_TYPE, DataFormat::new(data_format).content_type())
-                // .header("Cache-Control", "no-cache")
-                .header("Access-Control-Allow-Origin", "*")
-                .body(From::from(decode(data, data_in_format).unwrap()))
-                .unwrap(),
-            );
+      let tile_path = matches.name("tile_path").unwrap().as_str();
+      let tile_meta = match get_data(&tile_path.to_string()) {
+        Some(tile_meta) => tile_meta,
+        None => return Ok(not_found()),
+      };
+      let mut tile_meta_json = json!({
+          "name":  if tile_meta.name.is_some() { tile_meta.name.clone() } else { Some(tile_meta.id.clone()) } ,
+          "version": tile_meta.version,
+          "tiles": vec![format!(
+              "http://{}/{}/tiles/{{z}}/{{x}}/{{y}}.{}",
+              host,
+              tile_path,
+              tile_meta.tile_format.format(),
+          )],
+          "tilejson": tile_meta.tilejson,
+          "scheme": tile_meta.scheme,
+          "id": tile_path,
+          "format": tile_meta.tile_format,
+          "bounds": tile_meta.bounds,
+          "center": tile_meta.center,
+          "minzoom": tile_meta.minzoom,
+          "maxzoom": tile_meta.maxzoom,
+          "description": tile_meta.description,
+          "attribution": tile_meta.attribution,
+          "type": tile_meta.layer_type,
+          "legend": tile_meta.legend,
+          "template": tile_meta.template,
+      });
+      // MapLibre GL JS merges the TileJSON into the source, so this is what switches a vector
+      // source over to the MLT decoder. Values come from the style spec `encoding` enum.
+      if tile_meta.tile_format.is_vector() {
+        tile_meta_json["encoding"] = json!(if tile_meta.tile_format == DataFormat::Mlt {
+          "mlt"
+        } else {
+          "mvt"
+        });
+      }
+      if let Some(json_data) = tile_meta.json.as_ref().and_then(|json| json.as_object()) {
+        for (k, v) in json_data {
+          // what the file says about its own addressing must not override what this server does
+          // PMTiles metadata is free-form JSON and often spells numbers as strings ("maxzoom":
+          // "13"); the numeric values above come from the header and must not be replaced by it.
+          if matches!(
+            k.as_str(),
+            "tiles" | "scheme" | "tilejson" | "id" | "format" | "bounds" | "center" | "minzoom" | "maxzoom"
+          ) {
+            continue;
           }
-          Err(_) => Ok(no_content()),
-        },
-        _ => {
-          let data = match get_tile_data(&tile_meta.connection_pool.get().unwrap(), z, x, y) {
-            Ok(data) => data,
-            Err(_) => get_blank_image(),
-          };
-          Ok(
-            response
-              .header(CONTENT_TYPE, DataFormat::new(data_format).content_type())
-              // .header("Cache-Control", "no-cache")
-              .header("Access-Control-Allow-Origin", "*")
-              .body(From::from(Bytes::from(data)))
-              .unwrap(),
-          )
+          tile_meta_json[k] = v.clone();
         }
-      };
-    }
-    None => {
-      return match META_URL_RE.captures(path) {
-        Some(matches) => {
-          let host = get_host(&request).unwrap();
-          let tile_path = matches.name("tile_path").unwrap().as_str();
-          let tile_meta = get_data(&tile_path.to_string()).unwrap();
-          let mut tile_meta_json = json!({
-              "name":  if tile_meta.name.is_some() { tile_meta.name.clone() } else { Some(tile_meta.id.clone()) } ,
-              "version": tile_meta.version,
-              "tiles": vec![format!(
-                  "http://{}/{}/tiles/{{z}}/{{x}}/{{y}}.{}",
-                  host,
-                  tile_path,
-                  tile_meta.tile_format.format(),
-              )],
-              "tilejson": tile_meta.tilejson,
-              "scheme": tile_meta.scheme,
-              "id": tile_path,
-              "format": tile_meta.tile_format,
-              "bounds": tile_meta.bounds,
-              "center": tile_meta.center,
-              "minzoom": tile_meta.minzoom,
-              "maxzoom": tile_meta.maxzoom,
-              "description": tile_meta.description,
-              "attribution": tile_meta.attribution,
-              "type": tile_meta.layer_type,
-              "legend": tile_meta.legend,
-              "template": tile_meta.template,
-          });
-          // MapLibre GL JS merges the TileJSON into the source, so this is what switches a vector
-          // source over to the MLT decoder. Values come from the style spec `encoding` enum.
-          if tile_meta.tile_format.is_vector() {
-            tile_meta_json["encoding"] = json!(if tile_meta.tile_format == DataFormat::Mlt {
-              "mlt"
-            } else {
-              "mvt"
-            });
-          }
-          if let Some(json_data) = &tile_meta.json {
-            for (k, v) in json_data.as_object().unwrap() {
-              tile_meta_json[k] = v.clone();
-            }
-          }
+      }
 
-          return Ok(
-            Response::builder()
-              .header(CONTENT_TYPE, "application/json")
-              .header("Access-Control-Allow-Origin", "*")
-              .body(Full::from(serde_json::to_string(&tile_meta_json).unwrap()))
-              .unwrap(),
-          ); // TODO handle error
-             // } else if path == "/reload" {
-             // if allow_reload_api {
-             // tilesets.reload();
-             // return Ok(no_content());
-             // } else {
-             // return Ok(forbidden());
-             // }
-             // }
-        }
-        None => Ok(not_found()),
-      };
+      Ok(
+        Response::builder()
+          .header(CONTENT_TYPE, "application/json")
+          .header("Access-Control-Allow-Origin", "*")
+          .body(Full::from(serde_json::to_string(&tile_meta_json).unwrap_or_default()))
+          .unwrap(),
+      )
     }
-  };
+    None => Ok(not_found()),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::tiles::set_mbtiles;
+  use std::io::{Read, Write};
+  use std::net::TcpStream;
+  use std::path::PathBuf;
+  use std::time::Duration;
+
+  fn get(port: u16, path: &str) -> (String, Vec<u8>) {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    write!(
+      stream,
+      "GET {} HTTP/1.1\r\nHost: localhost:{}\r\nConnection: close\r\n\r\n",
+      path, port
+    )
+    .unwrap();
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw).unwrap();
+    let split = raw.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
+    (
+      String::from_utf8_lossy(&raw[..split]).into_owned(),
+      raw[split + 4..].to_vec(),
+    )
+  }
+
+  /// The whole path a webview takes: open, ask for tiles.json, ask for tiles. Bad requests must
+  /// answer with a status and leave the server alive, which a panic in a handler would not.
+  #[test]
+  fn serves_a_pmtiles_archive_over_http() {
+    let dir = std::env::temp_dir().join(format!("mbview-http-test-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path: PathBuf = dir.join("served.pmtiles");
+    std::fs::write(&path, crate::pmtiles::tests::build_archive()).unwrap();
+
+    let port = 19873;
+    std::thread::spawn(move || {
+      let _ = crate::server::run(port);
+    });
+    std::thread::sleep(Duration::from_millis(300));
+
+    let key = String::from("served");
+    set_mbtiles(&key, path, Box::new(|_| ())).unwrap();
+
+    let (head, body) = get(port, "/served/tiles.json");
+    assert!(head.starts_with("HTTP/1.1 200"), "{}", head);
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["format"], "png");
+    assert_eq!(json["scheme"], "xyz");
+    // the archive's own metadata spells these as strings; the header's numbers must win
+    assert_eq!(json["maxzoom"], 3);
+    assert_eq!(json["minzoom"], 0);
+    assert_eq!(json["bounds"][0], -180.0);
+    assert_eq!(json["tiles"][0], "http://localhost:19873/served/tiles/{z}/{x}/{y}.png");
+    assert_eq!(json["vector_layers"][0]["id"], "water");
+
+    let (head, body) = get(port, "/served/tiles/1/0/1.png");
+    assert!(head.starts_with("HTTP/1.1 200"), "{}", head);
+    assert!(head.to_lowercase().contains("content-type: image/png"));
+    assert_eq!(body, b"tile-b");
+
+    // an absent image tile is a plain 404 (maplibre treats that as "no data here")
+    let (head, _) = get(port, "/served/tiles/1/1/1.png");
+    assert!(head.starts_with("HTTP/1.1 404"), "{}", head);
+
+    // unknown file, junk numbers: a status line each, and the server keeps answering
+    let (head, _) = get(port, "/nope/tiles.json");
+    assert!(head.starts_with("HTTP/1.1 404"), "{}", head);
+    assert!(head.to_lowercase().contains("access-control-allow-origin: *"), "{}", head);
+    let (head, _) = get(port, "/nope/tiles/1/0/0.pbf");
+    assert!(head.starts_with("HTTP/1.1 404"), "{}", head);
+    let (head, _) = get(port, "/served/tiles/99999999999/0/0.png");
+    assert!(head.starts_with("HTTP/1.1 404"), "{}", head);
+    let (head, _) = get(port, "/served/tiles.json");
+    assert!(head.starts_with("HTTP/1.1 200"), "{}", head);
+
+    std::fs::remove_dir_all(&dir).ok();
+  }
+
+  /// Serves the fixtures named in MBVIEW_SERVE (comma separated paths) until killed, for looking
+  /// at them in a browser: `MBVIEW_SERVE=a.pmtiles cargo test serve_fixtures -- --ignored`.
+  #[test]
+  #[ignore]
+  fn serve_fixtures() {
+    let list = match std::env::var("MBVIEW_SERVE") {
+      Ok(list) => list,
+      Err(_) => return,
+    };
+    std::thread::spawn(|| {
+      let _ = crate::server::run(9872);
+    });
+    for file in list.split(',') {
+      let id = format!("{:x}", md5::compute(file.as_bytes()));
+      set_mbtiles(&id, PathBuf::from(file), Box::new(|_| ())).unwrap();
+      println!("{} -> http://localhost:9872/{}/tiles.json", file, id);
+    }
+    std::thread::sleep(Duration::from_secs(3600));
+  }
 }

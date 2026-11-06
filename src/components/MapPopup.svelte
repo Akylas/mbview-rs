@@ -20,7 +20,7 @@
   let hasMultipleSources = false;
 
   const popup = new Popup({
-    closeButton: false,
+    closeButton: true,
     closeOnClick: false,
     className: 'map_popup',
   });
@@ -194,6 +194,8 @@
     border-bottom: 1px solid var(--border);
   }
   .layer {
+    /* room for the popup's close button */
+    padding-right: 18px;
     display: flex;
     align-items: center;
     gap: 5px;

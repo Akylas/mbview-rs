@@ -16,6 +16,10 @@
         [$_('bounds'), source.bounds ? source.bounds.map((n) => n.toFixed(5)).join(', ') : '—'],
         [$_('center'), source.center ? source.center.join(', ') : '—'],
         [$_('layers'), source.vector ? String(source.layers.length) : '—'],
+        ...(source.sourceType === 'raster-dem'
+          ? [[$_('elevation_encoding'), source.demEncoding]]
+          : []),
+        ...(!source.vector && source.tileSize ? [[$_('tile_size'), `${source.tileSize}px`]] : []),
         [$_('attribution'), source.attribution || '—'],
         [$_('description'), source.description || '—'],
         [$_('tiles'), source.tiles[0] ?? '—'],

@@ -12,6 +12,7 @@ extern crate r2d2_sqlite;
 extern crate regex;
 
 mod errors;
+mod pmtiles;
 mod server;
 mod service;
 mod tiles;
@@ -48,79 +49,75 @@ struct MBtilesEventPayload {
 }
 
 #[tauri::command]
-fn reload_mbtiles(path: String, _window: WebviewWindow) {
-  // println!("reload_mbtiles {}", path);
-  let mb_tiles_id = format!("{:x}", md5::compute(path.clone().as_bytes()));
-  reload(&mb_tiles_id);
+async fn reload_mbtiles(path: String, _window: WebviewWindow) -> Result<(), String> {
+  let mb_tiles_id = format!("{:x}", md5::compute(path.as_bytes()));
+  // reopening a big archive is disk work: keep it off the thread that drives the UI
+  tauri::async_runtime::spawn_blocking(move || reload(&mb_tiles_id))
+    .await
+    .map_err(|err| err.to_string())
 }
+
+/// Opens a tile file and announces it to the webview. Async and blocking-pool backed on purpose:
+/// a synchronous command runs on the main thread, and opening a large file there freezes the
+/// whole window until it returns.
 #[tauri::command]
-fn setup_mbtiles(
+async fn setup_mbtiles(
   key: String,
   path: Option<String>,
   source_type: Option<String>,
   layer_type: Option<String>,
   window: WebviewWindow,
-) {
-  if path.is_none() {
-    return;
-  }
-  let path_buf = PathBuf::from(path.clone().unwrap());
+) -> Result<(), String> {
+  let path = match path {
+    Some(path) => path,
+    None => return Ok(()),
+  };
+  let path_buf = PathBuf::from(&path);
   if !path_buf.exists() {
-    return;
+    return Err(format!("File not found: {}", path));
   }
-  let window_ = window.clone();
-  let mb_tiles_id = format!("{:x}", md5::compute(path.clone().unwrap().as_bytes()));
+  let mb_tiles_id = format!("{:x}", md5::compute(path.as_bytes()));
 
-  // println!(
-  //   "setup_mbtiles {} {} {} {}",
-  //   path.clone().unwrap(),
-  //   mb_tiles_id,
-  //   source_type.as_ref().map_or("not found", String::as_str),
-  //   layer_type.as_ref().map_or("not found", String::as_str)
-  // );
-  set_mbtiles(
-    &mb_tiles_id,
-    path_buf,
-    Box::new(move |mb_tiles_id| {
-      window_
-        .emit(
+  let window_ = window.clone();
+  let id = mb_tiles_id.clone();
+  let opened = tauri::async_runtime::spawn_blocking(move || {
+    set_mbtiles(
+      &id,
+      path_buf,
+      Box::new(move |mb_tiles_id| {
+        let _ = window_.emit(
           "reload-mbtiles",
           Payload {
             message: mb_tiles_id,
           },
-        )
-        .unwrap()
-    }),
-  );
-  let file_path = Some(
-    get_path(&mb_tiles_id)
-      .unwrap()
-      .into_os_string()
-      .into_string()
-      .unwrap(),
-  );
+        );
+      }),
+    )
+  })
+  .await
+  .map_err(|err| err.to_string())?;
+  opened.map_err(|err| err.to_string())?;
+
+  let file_path = get_path(&mb_tiles_id).and_then(|path| path.into_os_string().into_string().ok());
   window
     .emit(
       "mbtiles",
       MBtilesEventPayload {
-        key: key.clone(),
+        key,
         source_id: mb_tiles_id.clone(),
-        path: file_path.clone(),
-        source_type: source_type.clone(),
-        layer_type: layer_type.clone(),
-        json_url: if file_path.is_none() {
-          None
-        } else {
-          Some(format!(
+        json_url: file_path.as_ref().map(|_| {
+          format!(
             "http://localhost:{}/{}/tiles.json",
             PORT.to_string(),
-            mb_tiles_id.clone()
-          ))
-        },
+            mb_tiles_id
+          )
+        }),
+        path: file_path,
+        source_type,
+        layer_type,
       },
     )
-    .unwrap();
-  // }
+    .map_err(|err| err.to_string())
 }
 
 fn main() {
