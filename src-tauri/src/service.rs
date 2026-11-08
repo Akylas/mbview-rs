@@ -109,9 +109,10 @@ pub async fn get_service(request: Request<hyper::body::Incoming>) -> Result<Resp
       _ => {
         // A 404, not a blank image: maplibre then falls back to a parent tile, which is right for
         // rasters, and for elevation a fake "empty" tile would decode as a pit thousands of metres deep.
-        let data = match stored {
-          Some(data) => data,
-          None => return Ok(not_found()),
+        let data = match stored.map(inflate_vector) {
+          // image tiles are sometimes stored compressed too, and a browser cannot decode that
+          Some(Ok(data)) => data,
+          _ => return Ok(not_found()),
         };
         Ok(
           response
