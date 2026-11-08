@@ -252,7 +252,8 @@ pub fn get_data_format_via_query(
   category: &str,
 ) -> Result<DataFormat> {
   let query = match category {
-    "tile" => r#"SELECT tile_data FROM tiles LIMIT 1"#,
+    // an empty blob has no magic bytes to read: look for a tile that has some
+    "tile" => r#"SELECT tile_data FROM tiles WHERE length(tile_data) > 0 LIMIT 1"#,
     "grid" => r#"SELECT grid_utfgrid FROM grid_utfgrid LIMIT 1"#,
     _ => {
       return Err(Error::InvalidDataFormatQueryCategory(String::from(
@@ -470,6 +471,16 @@ fn get_mbtiles_details(path: &Path, tile_name: &str) -> Result<TileMeta> {
   if let Some(declared) = declared_format {
     if declared.is_vector() && metadata.tile_format.is_vector() {
       metadata.tile_format = declared;
+    } else if declared.is_image() && metadata.tile_format.is_vector() {
+      // sniffing falls back to a vector format when it recognises nothing: an archive that
+      // says it holds images and has no vector layers is more likely a raster we could not read
+      let has_layers = metadata
+        .json
+        .as_ref()
+        .map_or(false, |json| json.get("vector_layers").is_some() || json.get("Layer").is_some());
+      if !has_layers {
+        metadata.tile_format = declared;
+      }
     }
   }
 
@@ -504,6 +515,7 @@ pub fn inflate_vector(data: Vec<u8>) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use std::io::Write;
 
   fn temp_file(name: &str, bytes: &[u8]) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("mbview-tiles-test-{}", std::process::id()));
@@ -549,5 +561,63 @@ mod tests {
     let path = temp_file("empty.mbtiles", &[]);
     assert!(get_tile_details(&path).is_err());
     assert!(get_tile_details(Path::new("/nonexistent/file.pmtiles")).is_err());
+  }
+
+  /// Builds an MBTiles file with one table row per `(zoom, column, row, blob)`.
+  fn raster_mbtiles(name: &str, format: &str, rows: &[(u32, u32, u32, Vec<u8>)]) -> PathBuf {
+    let path = temp_file(name, &[]);
+    std::fs::remove_file(&path).ok();
+    let db = rusqlite::Connection::open(&path).unwrap();
+    db.execute_batch(
+      "CREATE TABLE metadata (name TEXT, value TEXT);
+       CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB);",
+    )
+    .unwrap();
+    db.execute("INSERT INTO metadata VALUES ('format', ?1)", [format]).unwrap();
+    for (z, x, y, data) in rows {
+      db.execute("INSERT INTO tiles VALUES (?1, ?2, ?3, ?4)", params![z, x, y, data]).unwrap();
+    }
+    path
+  }
+
+  fn webp_tile() -> Vec<u8> {
+    let mut tile = b"RIFF".to_vec();
+    tile.extend_from_slice(&[0x10, 0, 0, 0]);
+    tile.extend_from_slice(b"WEBPVP8 ");
+    tile.extend_from_slice(&[0u8; 16]);
+    tile
+  }
+
+  #[test]
+  fn a_webp_mbtiles_is_a_raster() {
+    let path = raster_mbtiles("webp.mbtiles", "webp", &[(0, 0, 0, webp_tile())]);
+    assert_eq!(get_tile_details(&path).unwrap().tile_format, DataFormat::Webp);
+  }
+
+  #[test]
+  fn an_empty_first_tile_does_not_hide_the_image_format() {
+    let path = raster_mbtiles(
+      "webp-empty-first.mbtiles",
+      "webp",
+      &[(0, 0, 0, Vec::new()), (1, 0, 0, webp_tile())],
+    );
+    assert_eq!(get_tile_details(&path).unwrap().tile_format, DataFormat::Webp);
+  }
+
+  #[test]
+  fn compressed_image_tiles_are_still_images() {
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    let mut gz = GzEncoder::new(Vec::new(), Compression::default());
+    gz.write_all(&webp_tile()).unwrap();
+    let path = raster_mbtiles("webp-gz.mbtiles", "webp", &[(0, 0, 0, gz.finish().unwrap())]);
+    assert_eq!(get_tile_details(&path).unwrap().tile_format, DataFormat::Webp);
+  }
+
+  #[test]
+  fn the_declared_image_format_wins_over_an_unreadable_first_tile() {
+    // not a recognisable image, but the file says it holds webp and lists no vector layers
+    let path = raster_mbtiles("webp-odd.mbtiles", "webp", &[(0, 0, 0, vec![1, 2, 3, 4, 5, 6, 7, 8])]);
+    assert_eq!(get_tile_details(&path).unwrap().tile_format, DataFormat::Webp);
   }
 }

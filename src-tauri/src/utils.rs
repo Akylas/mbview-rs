@@ -67,6 +67,14 @@ impl DataFormat {
     }
   }
 
+  /// Raster formats a browser can decode as an image.
+  pub fn is_image(&self) -> bool {
+    matches!(
+      *self,
+      DataFormat::Png | DataFormat::Jpg | DataFormat::Webp | DataFormat::Avif
+    )
+  }
+
   /// Formats holding vector features, i.e. the ones a `vector` source can render.
   pub fn is_vector(&self) -> bool {
     matches!(*self, DataFormat::Pbf | DataFormat::Mlt)
@@ -173,7 +181,11 @@ pub fn get_tile_format(data: &[u8]) -> DataFormat {
   let stored_as = get_data_format(data);
   match stored_as {
     DataFormat::Gzip | DataFormat::Zlib => match decode(data.to_vec(), stored_as) {
-      Ok(decoded) => get_vector_format(&decoded),
+      // some writers compress image tiles too
+      Ok(decoded) => match get_data_format(&decoded) {
+        image if image.is_image() => image,
+        _ => get_vector_format(&decoded),
+      },
       Err(_) => DataFormat::Pbf,
     },
     DataFormat::Unknown => get_vector_format(data),
