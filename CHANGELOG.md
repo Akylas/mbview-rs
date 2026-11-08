@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.1.0](https://github.com/Akylas/mbview-rs/compare/v2.0.0...v2.1.0) (2026-11-08)
+
+
+### Features
+
+* PMTiles support and 3D terrain ([716acb0](https://github.com/Akylas/mbview-rs/commit/716acb0c2dd6520272900720ae2dcd16651228a4))
+
+
+### Bug Fixes
+
+* harden raster mbtiles format detection (webp) ([f5e1902](https://github.com/Akylas/mbview-rs/commit/f5e190205bf60eb577bc2da07beda668ce0ac3a5)), closes [Akylas/mbview-rs#19](https://github.com/Akylas/mbview-rs/issues/19)
+
 ## [2.0.0](https://github.com/Akylas/mbview-rs/compare/v1.7.3...v2.0.0) (2026-08-16)
 
 
