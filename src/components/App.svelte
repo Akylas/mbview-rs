@@ -7,7 +7,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { dirname, resolve, resourceDir } from '@tauri-apps/api/path';
-  import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+  import { copyText, lastCopied } from '../lib/clipboard';
   import { message, open } from '@tauri-apps/plugin-dialog';
   import { readTextFile } from '@tauri-apps/plugin-fs';
   import { openUrl } from '@tauri-apps/plugin-opener';
@@ -853,7 +853,7 @@
   }
 
   function copy(text: string) {
-    writeText(text).catch((error) => console.error(error));
+    void copyText(text);
   }
 
   /* ---------------------------------------------------------------------- */
@@ -1216,6 +1216,7 @@
               sources={secondarySources}
               bind:features={secondaryFeatures}
               mode={$settings.inspect}
+              hideOnMove={$settings.hidePopupOnMove}
             />
           </div>
           <div id="main" class="map" bind:this={mainMapDiv}>
@@ -1224,11 +1225,15 @@
               sources={mainSources}
               bind:features={mainFeatures}
               mode={$settings.inspect}
+              hideOnMove={$settings.hidePopupOnMove}
             />
           </div>
         </div>
 
         <StatusBar map={activeMap} onCopy={copy} />
+        {#if $lastCopied}
+          <div class="copied" role="status">{$_('copied')}: <span>{$lastCopied}</span></div>
+        {/if}
       </div>
 
       {#if $settings.showTable && !$compact}
@@ -1501,6 +1506,29 @@
   }
   .recent button:hover {
     text-decoration: underline;
+  }
+
+  .copied {
+    position: absolute;
+    bottom: calc(34px + var(--safe-bottom));
+    left: calc(6px + var(--safe-left));
+    z-index: 20;
+    max-width: min(360px, 80%);
+    overflow: hidden;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--surface-float);
+    box-shadow: var(--shadow);
+    color: var(--text-muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .copied span {
+    color: var(--text);
+    font-family: var(--mono);
   }
 
   .panel-toggle {

@@ -51,6 +51,7 @@
       ]}
     />
     <p class="hint">{$_('inspect_help')}</p>
+    <Toggle label={$_('hide_popup_on_move')} bind:checked={$settings.hidePopupOnMove} />
   </Section>
 
   <Section title={$_('debug')}>
