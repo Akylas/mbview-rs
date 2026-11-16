@@ -14,6 +14,7 @@
   import { settings } from '../lib/settings';
   import { basename, type SourceEntry } from '../lib/sources';
   import SourceCard from './SourceCard.svelte';
+  import Link from 'carbon-icons-svelte/lib/Link.svelte';
   import Menu from './ui/Menu.svelte';
   import MenuItem from './ui/MenuItem.svelte';
   import SegmentedControl from './ui/SegmentedControl.svelte';
@@ -156,6 +157,7 @@
 </div>
 
 <Menu bind:open={addOpen} x={addX} y={addY} alignRight onClose={() => (addOpen = false)}>
+  <MenuItem label={$_('add_url')} icon={Link} on:click={() => dispatch('addUrl')} />
   <MenuItem
     label={$_('add_hillshade')}
     on:click={() => dispatch('add', { sourceType: 'raster-dem', layerType: 'hillshade' })}

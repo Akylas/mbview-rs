@@ -13,6 +13,7 @@ extern crate regex;
 
 mod errors;
 mod pmtiles;
+mod remote;
 mod server;
 mod service;
 mod tiles;
@@ -73,7 +74,8 @@ async fn setup_mbtiles(
     None => return Ok(()),
   };
   let path_buf = PathBuf::from(&path);
-  if !path_buf.exists() {
+  // a web address is not on disk: it is checked by actually reaching it
+  if !remote::is_remote(&path) && !path_buf.exists() {
     return Err(format!("File not found: {}", path));
   }
   let mb_tiles_id = format!("{:x}", md5::compute(path.as_bytes()));
@@ -168,6 +170,11 @@ fn main() {
             .item(
               &MenuItemBuilder::with_id("open", "Open...")
                 .accelerator("CmdOrControl+O")
+                .build(app)?,
+            )
+            .item(
+              &MenuItemBuilder::with_id("open_url", "Open URL...")
+                .accelerator("CmdOrControl+Shift+O")
                 .build(app)?,
             )
             .close_window()

@@ -22,6 +22,8 @@ pub enum Error {
   InvalidPmtiles(String),
   /// The file is neither an MBTiles (SQLite) database nor a PMTiles archive.
   UnsupportedFile(String),
+  /// A remote source that could not be reached or did not answer as expected.
+  Remote(String),
 }
 
 impl fmt::Display for Error {
@@ -44,6 +46,7 @@ impl fmt::Display for Error {
       Error::UnsupportedFile(tile_name) => {
         write!(f, "Not an MBTiles or PMTiles file: {}", tile_name)
       }
+      Error::Remote(reason) => write!(f, "Remote source: {}", reason),
     }
   }
 }
