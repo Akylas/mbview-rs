@@ -35,6 +35,7 @@ tauri-plugin-dialog = "2.7"
 tauri-plugin-fs = "2.5"
 tauri-plugin-clipboard-manager = "2.3"
 tauri-plugin-opener = "2.5"
+ureq = "2"
 
   [dependencies.rusqlite]
   version = "0.40"

@@ -14,6 +14,7 @@ use serde_json::Value as JSONValue;
 
 use crate::errors::{Error, Result};
 use crate::pmtiles::{self, Compression, Pmtiles, TileType};
+use crate::remote;
 use std::io::Read;
 use std::sync::Arc;
 
@@ -26,6 +27,35 @@ pub type Connection = r2d2::PooledConnection<SqliteConnectionManager>;
 pub enum Backend {
   Mbtiles(r2d2::Pool<SqliteConnectionManager>),
   Pmtiles(Arc<Pmtiles>),
+  /// A web server handing out one tile per request.
+  Remote(Arc<RemoteTiles>),
+}
+
+/// `{z}/{x}/{y}` URL templates, usually from a TileJSON.
+#[derive(Debug)]
+pub struct RemoteTiles {
+  templates: Vec<String>,
+  /// rows counted from the bottom, as a TileJSON with `"scheme": "tms"` has them
+  tms: bool,
+}
+
+impl RemoteTiles {
+  fn url(&self, z: u32, x: u32, y: u32) -> Option<String> {
+    if self.templates.is_empty() {
+      return None;
+    }
+    // spread the load over the servers of a TileJSON the way every client does
+    let template = &self.templates[(z as usize + x as usize + y as usize) % self.templates.len()];
+    let flipped = 1u32.checked_shl(z)?.checked_sub(1 + y)?;
+    let row = if self.tms { flipped } else { y };
+    Some(
+      template
+        .replace("{z}", &z.to_string())
+        .replace("{x}", &x.to_string())
+        .replace("{y}", &row.to_string())
+        .replace("{-y}", &flipped.to_string()),
+    )
+  }
 }
 
 #[derive(Clone, Debug)]
@@ -52,6 +82,15 @@ pub struct TileMeta {
 }
 
 impl TileMeta {
+  /// Whether getting a tile means a network round trip, which must not block the async server.
+  pub fn is_remote(&self) -> bool {
+    match &self.backend {
+      Backend::Mbtiles(_) => false,
+      Backend::Pmtiles(archive) => archive.is_remote(),
+      Backend::Remote(_) => true,
+    }
+  }
+
   /// Tile bytes for an XYZ address, as stored (a vector tile may still be gzipped).
   /// `Ok(None)` is a tile the file simply does not have.
   pub fn get_tile(&self, z: u32, x: u32, y: u32) -> Result<Option<Vec<u8>>> {
@@ -65,6 +104,10 @@ impl TileMeta {
         let connection = pool.get().map_err(Error::Pool)?;
         get_tile_data(&connection, z, x, tms_y)
       }
+      Backend::Remote(remote_tiles) => match remote_tiles.url(z, x, y) {
+        Some(url) => remote::get(&url, remote::MAX_TILE),
+        None => Ok(None),
+      },
       Backend::Pmtiles(archive) => {
         let raw = match u8::try_from(z) {
           Ok(z) => archive.get_tile(z, x, y)?,
@@ -192,6 +235,7 @@ pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) 
   // the slow part (opening, sniffing) runs without any lock held
   let tile_meta = get_tile_details(&path)?;
 
+  let remote = remote::is_remote(&path.to_string_lossy());
   let previous = {
     let mut map = lock_map();
     let previous = map.get(key).map(|entry| entry.path.clone());
@@ -205,12 +249,15 @@ pub fn set_mbtiles(key: &String, path: PathBuf, callback: Box<dyn CloneableFn>) 
     );
     previous
   };
-  if let Some(previous) = previous {
+  // there is nothing on disk to watch for a web address
+  if let Some(previous) = previous.filter(|previous| !remote::is_remote(&previous.to_string_lossy())) {
     if let Err(err) = lock_watcher().unwatch(&previous) {
       println!("error unwatch {}", err);
     }
   }
-  watch_file(key, &path);
+  if !remote {
+    watch_file(key, &path);
+  }
   Ok(())
 }
 
@@ -284,6 +331,10 @@ fn sniff_file(path: &Path) -> Result<Vec<u8>> {
 }
 
 pub fn get_tile_details(path: &Path) -> Result<TileMeta> {
+  let location = path.to_string_lossy();
+  if remote::is_remote(&location) {
+    return get_remote_details(location.trim());
+  }
   let tile_name = path
     .file_name()
     .and_then(OsStr::to_str)
@@ -332,7 +383,10 @@ fn json_string(value: &JSONValue, key: &str) -> Option<String> {
 }
 
 fn get_pmtiles_details(path: &Path, tile_name: &str) -> Result<TileMeta> {
-  let archive = Arc::new(Pmtiles::open(path)?);
+  pmtiles_meta(Arc::new(Pmtiles::open(path)?), path, tile_name)
+}
+
+fn pmtiles_meta(archive: Arc<Pmtiles>, path: &Path, tile_name: &str) -> Result<TileMeta> {
   let header = archive.header.clone();
 
   let mut tile_format = match header.tile_type {
@@ -377,6 +431,271 @@ fn get_pmtiles_details(path: &Path, tile_name: &str) -> Result<TileMeta> {
     metadata.json = Some(info.clone());
   }
   Ok(metadata)
+}
+
+/// A short name for a web address: the last thing in its path, or its host.
+fn remote_name(url: &str) -> String {
+  let path = remote::path_part(url).trim_end_matches('/');
+  let rest = path.split("://").nth(1).unwrap_or(path);
+  let mut parts = rest.split('/');
+  let host = parts.next().unwrap_or(rest);
+  match parts.filter(|part| !part.is_empty() && !part.contains('{')).last() {
+    Some(last) => last.to_string(),
+    None => host.to_string(),
+  }
+}
+
+fn json_u32(value: &JSONValue, key: &str) -> Option<u32> {
+  match value.get(key)? {
+    JSONValue::Number(number) => number.as_f64().map(|n| n as u32),
+    JSONValue::String(text) => text.trim().parse::<f64>().ok().map(|n| n as u32),
+    _ => None,
+  }
+}
+
+/// A list of numbers, written as a JSON array or as "1,2,3,4".
+fn json_numbers(value: &JSONValue, key: &str) -> Option<Vec<f64>> {
+  let list: Vec<f64> = match value.get(key)? {
+    JSONValue::Array(items) => items.iter().filter_map(|item| item.as_f64()).collect(),
+    JSONValue::String(text) => text.split(',').filter_map(|part| part.trim().parse().ok()).collect(),
+    _ => return None,
+  };
+  Some(list)
+}
+
+fn read_varint(buf: &[u8], pos: &mut usize) -> Option<u64> {
+  let mut value = 0u64;
+  for i in 0..10 {
+    let byte = *buf.get(*pos)?;
+    *pos += 1;
+    value |= u64::from(byte & 0x7f) << (i * 7);
+    if byte & 0x80 == 0 {
+      return Some(value);
+    }
+  }
+  None
+}
+
+/// The length-delimited fields of a protobuf message, as `(field number, bytes)`.
+fn proto_blobs(buf: &[u8]) -> Vec<(u64, &[u8])> {
+  let mut out = Vec::new();
+  let mut pos = 0usize;
+  while pos < buf.len() {
+    let key = match read_varint(buf, &mut pos) {
+      Some(key) => key,
+      None => break,
+    };
+    match key & 7 {
+      0 => {
+        if read_varint(buf, &mut pos).is_none() {
+          break;
+        }
+      }
+      1 => pos += 8,
+      5 => pos += 4,
+      2 => {
+        let len = match read_varint(buf, &mut pos) {
+          Some(len) => len as usize,
+          None => break,
+        };
+        match pos.checked_add(len) {
+          Some(end) if end <= buf.len() => {
+            out.push((key >> 3, &buf[pos..end]));
+            pos = end;
+          }
+          _ => break,
+        }
+      }
+      _ => break,
+    }
+  }
+  out
+}
+
+/// Names of the layers in a Mapbox Vector Tile: field 3 of a tile is a layer, whose field 1 is its name.
+fn mvt_layer_names(tile: &[u8]) -> Vec<String> {
+  proto_blobs(tile)
+    .into_iter()
+    .filter(|(field, _)| *field == 3)
+    .filter_map(|(_, layer)| {
+      proto_blobs(layer)
+        .into_iter()
+        .find(|(field, _)| *field == 1)
+        .and_then(|(_, name)| String::from_utf8(name.to_vec()).ok())
+    })
+    .collect()
+}
+
+/// How far down the pyramid a bare template is explored.
+const SNIFF_MAX_ZOOM: u32 = 16;
+
+/// Layers and deepest zoom of a bare vector template, which has no TileJSON to say what is inside.
+///
+/// One tile is not enough: a world tile only holds the layers that exist at low zoom (water,
+/// boundaries, places), while roads, buildings and POIs appear deeper. So this starts at the first
+/// tile that answers and keeps stepping into the busiest of its four children, merging the layer
+/// names of everything it meets, until a level has no tile.
+fn sniff_vector_layers(meta: &TileMeta) -> (Vec<String>, u32) {
+  let fetch = |z: u32, x: u32, y: u32| {
+    meta
+      .get_tile(z, x, y)
+      .ok()
+      .flatten()
+      .and_then(|tile| inflate_vector(tile).ok())
+      // some servers answer 200 with nothing past their last zoom instead of a 404
+      .filter(|tile| !tile.is_empty())
+  };
+  let mut names: Vec<String> = Vec::new();
+  let mut add = |tile: &[u8]| {
+    for name in mvt_layer_names(tile) {
+      if !names.contains(&name) {
+        names.push(name);
+      }
+    }
+  };
+
+  // a regional tileset has nothing at 0/0/0: look a little further for somewhere it answers
+  let mut at = None;
+  'seed: for z in 0..=2u32 {
+    for x in 0..(1u32 << z) {
+      for y in 0..(1u32 << z) {
+        if let Some(tile) = fetch(z, x, y) {
+          add(&tile);
+          at = Some((z, x, y));
+          break 'seed;
+        }
+      }
+    }
+  }
+  let (mut z, mut x, mut y) = match at {
+    Some(at) => at,
+    None => return (names, 0),
+  };
+  let mut deepest = z;
+  while z < SNIFF_MAX_ZOOM {
+    let mut busiest: Option<(usize, u32, u32)> = None;
+    for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+      let (cx, cy) = (x * 2 + dx, y * 2 + dy);
+      if let Some(tile) = fetch(z + 1, cx, cy) {
+        add(&tile);
+        if busiest.map_or(true, |(size, _, _)| tile.len() > size) {
+          busiest = Some((tile.len(), cx, cy));
+        }
+      }
+    }
+    match busiest {
+      Some((_, cx, cy)) => {
+        z += 1;
+        x = cx;
+        y = cy;
+        deepest = z;
+      }
+      None => break,
+    }
+  }
+  (names, deepest)
+}
+
+fn get_remote_details(url: &str) -> Result<TileMeta> {
+  let name = remote_name(url);
+  let path = Path::new(url);
+  if remote::path_part(url).to_ascii_lowercase().ends_with(".pmtiles") {
+    return pmtiles_meta(Arc::new(Pmtiles::open_url(url)?), path, &name);
+  }
+  if url.contains("{z}") {
+    return remote_details(url, &name, vec![url.to_string()], false, JSONValue::Null);
+  }
+  let body = remote::get(url, remote::MAX_JSON)?
+    .ok_or_else(|| Error::Remote(format!("{}: not found", url)))?;
+  // an archive served without the usual extension
+  if body.starts_with(pmtiles::MAGIC) {
+    return pmtiles_meta(Arc::new(Pmtiles::open_url(url)?), path, &name);
+  }
+  let json: JSONValue = serde_json::from_slice(&body)
+    .map_err(|_| Error::Remote(format!("{}: neither a TileJSON nor a PMTiles archive", url)))?;
+  let templates: Vec<String> = json
+    .get("tiles")
+    .and_then(|tiles| tiles.as_array())
+    .map(|tiles| {
+      tiles
+        .iter()
+        .filter_map(|tile| tile.as_str())
+        .filter(|tile| remote::is_remote(tile))
+        .map(String::from)
+        .collect()
+    })
+    .unwrap_or_default();
+  if templates.is_empty() {
+    return Err(Error::Remote(format!("{}: the TileJSON lists no tile URLs", url)));
+  }
+  let tms = json.get("scheme").and_then(|scheme| scheme.as_str()) == Some("tms");
+  remote_details(url, &name, templates, tms, json)
+}
+
+/// A source made of URL templates, with whatever its TileJSON (`Null` when it has none) says.
+fn remote_details(
+  url: &str,
+  name: &str,
+  templates: Vec<String>,
+  tms: bool,
+  info: JSONValue,
+) -> Result<TileMeta> {
+  let extension = remote::path_part(&templates[0])
+    .rsplit('.')
+    .next()
+    .map(|ext| ext.to_ascii_lowercase())
+    .unwrap_or_default();
+  let has_layers = info.get("vector_layers").is_some() || info.get("Layer").is_some();
+  let declared = json_string(&info, "format").map(|format| DataFormat::new(&format.to_ascii_lowercase()));
+  let mut tile_format = match declared {
+    Some(format) if format != DataFormat::Unknown => format,
+    _ => DataFormat::new(&extension),
+  };
+  if tile_format == DataFormat::Unknown || (has_layers && !tile_format.is_vector()) {
+    tile_format = DataFormat::Pbf;
+  }
+
+  let mut meta = blank_meta(
+    Backend::Remote(Arc::new(RemoteTiles { templates, tms })),
+    Path::new(url),
+    name,
+    tile_format,
+  );
+  meta.minzoom = json_u32(&info, "minzoom").or(Some(0));
+  meta.maxzoom = json_u32(&info, "maxzoom").or(Some(22));
+  meta.bounds = json_numbers(&info, "bounds").filter(|bounds| bounds.len() == 4);
+  meta.center = json_numbers(&info, "center").filter(|center| center.len() >= 2);
+  meta.name = json_string(&info, "name");
+  meta.version = json_string(&info, "version");
+  meta.description = json_string(&info, "description");
+  meta.attribution = json_string(&info, "attribution");
+  meta.layer_type = json_string(&info, "type");
+  if info.is_object() {
+    meta.json = Some(info);
+  }
+
+  if tile_format.is_vector() && !has_layers {
+    // a bare template: without a layer list the viewer would take it for a raster
+    if tile_format == DataFormat::Mlt {
+      return Err(Error::Remote(format!(
+        "{}: MLT tiles need a TileJSON that lists their layers",
+        url
+      )));
+    }
+    let (layers, deepest) = sniff_vector_layers(&meta);
+    if layers.is_empty() {
+      return Err(Error::Remote(format!(
+        "{}: no vector tile found to read the layers from, give a TileJSON instead",
+        url
+      )));
+    }
+    // asking for tiles deeper than the server has would only draw nothing
+    meta.maxzoom = Some(deepest);
+    meta.json = Some(serde_json::json!({
+      "vector_layers": layers.iter().map(|id| serde_json::json!({ "id": id })).collect::<Vec<_>>(),
+    }));
+  }
+  Ok(meta)
 }
 
 fn get_mbtiles_details(path: &Path, tile_name: &str) -> Result<TileMeta> {
@@ -513,7 +832,7 @@ pub fn inflate_vector(data: Vec<u8>) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
   use super::*;
   use std::io::Write;
 
@@ -619,5 +938,147 @@ mod tests {
     // not a recognisable image, but the file says it holds webp and lists no vector layers
     let path = raster_mbtiles("webp-odd.mbtiles", "webp", &[(0, 0, 0, vec![1, 2, 3, 4, 5, 6, 7, 8])]);
     assert_eq!(get_tile_details(&path).unwrap().tile_format, DataFormat::Webp);
+  }
+
+  /// A web server just big enough for these tests: one archive that honours `Range`, a TileJSON,
+  /// and a single vector tile at 0/0/0.
+  pub(crate) fn spawn_web_server() -> u16 {
+    use std::io::{BufRead, BufReader};
+    use std::net::TcpListener;
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let archive = crate::pmtiles::tests::build_archive();
+    std::thread::spawn(move || {
+      for stream in listener.incoming() {
+        let mut stream = match stream {
+          Ok(stream) => stream,
+          Err(_) => continue,
+        };
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        let path = line.split(' ').nth(1).unwrap_or("/").to_string();
+        let mut range: Option<(usize, usize)> = None;
+        loop {
+          let mut header = String::new();
+          reader.read_line(&mut header).unwrap();
+          if header.trim().is_empty() {
+            break;
+          }
+          if let Some(value) = header.to_ascii_lowercase().strip_prefix("range: bytes=") {
+            let mut parts = value.trim().split('-');
+            let start = parts.next().and_then(|n| n.parse().ok()).unwrap_or(0);
+            let end = parts.next().and_then(|n| n.parse().ok()).unwrap_or(0);
+            range = Some((start, end));
+          }
+        }
+        let make = |name: &[u8]| {
+          let layer = [&[0x0a, name.len() as u8][..], name].concat();
+          [&[0x1a, layer.len() as u8][..], &layer].concat()
+        };
+        let mvt = make(b"water");
+        let (status, body) = match path.as_str() {
+          "/a.pmtiles" => match range {
+            Some((start, end)) => ("206 Partial Content", archive[start..=end.min(archive.len() - 1)].to_vec()),
+            None => ("200 OK", archive.clone()),
+          },
+          // the same archive, but a server that ignores ranges
+          "/norange.pmtiles" => ("200 OK", archive.clone()),
+          "/tilejson" => (
+            "200 OK",
+            format!(
+              r#"{{"tilejson":"3.0.0","tiles":["http://127.0.0.1:{0}/t/{{z}}/{{x}}/{{y}}.pbf"],"vector_layers":[{{"id":"water"}}],"minzoom":"0","maxzoom":"14","bounds":[1,2,3,4]}}"#,
+              port
+            )
+            .into_bytes(),
+          ),
+          "/t/0/0/0.pbf" => ("200 OK", mvt),
+          // layers that only exist deeper down, as roads and buildings do
+          "/t/1/1/0.pbf" => ("200 OK", make(b"road")),
+          "/t/2/2/1.pbf" => ("200 OK", make(b"building")),
+          // an empty 200 below the last real level must not count as data
+          "/t/3/4/2.pbf" => ("200 OK", Vec::new()),
+          _ => ("404 Not Found", Vec::new()),
+        };
+        let head = format!("HTTP/1.1 {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", status, body.len());
+        let _ = stream.write_all(head.as_bytes());
+        let _ = stream.write_all(&body);
+      }
+    });
+    port
+  }
+
+  #[test]
+  fn reads_a_pmtiles_archive_over_http_ranges() {
+    let port = spawn_web_server();
+    let meta = get_tile_details(Path::new(&format!("http://127.0.0.1:{}/a.pmtiles", port))).unwrap();
+    assert!(meta.is_remote());
+    assert_eq!(meta.tile_format, DataFormat::Png);
+    assert_eq!(meta.maxzoom, Some(3));
+    assert_eq!(meta.get_tile(1, 0, 1).unwrap().unwrap(), b"tile-b");
+    // through a leaf directory, which is a second range request
+    assert_eq!(meta.get_tile(3, 5, 6).unwrap().unwrap(), b"tile-deep");
+    assert!(meta.get_tile(1, 1, 1).unwrap().is_none());
+  }
+
+  #[test]
+  fn a_server_without_range_support_is_refused() {
+    let port = spawn_web_server();
+    let err = get_tile_details(Path::new(&format!("http://127.0.0.1:{}/norange.pmtiles", port))).unwrap_err();
+    assert!(err.to_string().contains("range"), "{}", err);
+  }
+
+  #[test]
+  fn follows_a_tilejson_to_its_tiles() {
+    let port = spawn_web_server();
+    let meta = get_tile_details(Path::new(&format!("http://127.0.0.1:{}/tilejson", port))).unwrap();
+    assert!(meta.tile_format.is_vector());
+    assert_eq!(meta.maxzoom, Some(14));
+    assert_eq!(meta.bounds, Some(vec![1.0, 2.0, 3.0, 4.0]));
+    assert!(meta.get_tile(0, 0, 0).unwrap().is_some());
+    assert!(meta.get_tile(1, 0, 0).unwrap().is_none());
+  }
+
+  #[test]
+  fn reads_the_layers_of_a_bare_vector_template() {
+    let port = spawn_web_server();
+    let url = format!("http://127.0.0.1:{}/t/{{z}}/{{x}}/{{y}}.pbf", port);
+    let meta = get_tile_details(Path::new(&url)).unwrap();
+    let layers: Vec<String> = meta.json.as_ref().unwrap()["vector_layers"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|layer| layer["id"].as_str().unwrap().to_string())
+      .collect();
+    // not just what the world tile holds: what the tiles below it add, down to where they stop
+    assert_eq!(layers, vec!["water", "road", "building"]);
+    assert_eq!(meta.maxzoom, Some(2));
+  }
+
+  #[test]
+  fn template_rows_can_be_flipped() {
+    let tiles = RemoteTiles { templates: vec![String::from("https://a/{z}/{x}/{y}|{-y}")], tms: false };
+    assert_eq!(tiles.url(2, 1, 0).unwrap(), "https://a/2/1/0|3");
+    let tiles = RemoteTiles { templates: vec![String::from("https://a/{z}/{x}/{y}")], tms: true };
+    assert_eq!(tiles.url(2, 1, 0).unwrap(), "https://a/2/1/3");
+  }
+
+  /// The real thing: `cargo test openfreemap -- --ignored` (needs the network).
+  #[test]
+  #[ignore]
+  fn openfreemap_planet() {
+    let meta = get_tile_details(Path::new("https://tiles.openfreemap.org/planet")).unwrap();
+    assert!(meta.tile_format.is_vector());
+    assert!(meta.json.as_ref().unwrap()["vector_layers"].as_array().unwrap().len() > 5);
+    let tile = meta.get_tile(2, 2, 1).unwrap().unwrap();
+    assert!(!crate::tiles::inflate_vector(tile).unwrap().is_empty());
+  }
+
+  #[test]
+  #[ignore]
+  fn openfreemap_bare_template() {
+    let meta = get_tile_details(Path::new("https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf")).unwrap();
+    println!("{:?} maxzoom {:?}", meta.json.as_ref().unwrap()["vector_layers"], meta.maxzoom);
+    assert!(meta.json.as_ref().unwrap()["vector_layers"].as_array().unwrap().len() > 10);
   }
 }

@@ -85,7 +85,16 @@ pub async fn get_service(request: Request<hyper::body::Incoming>) -> Result<Resp
 
     // `Err` is a file that went bad under us (truncated, rebuilt): serve it as an empty tile
     // rather than taking the connection, or the app, down with it.
-    let stored = tile_meta.get_tile(z, x, y).unwrap_or_else(|err| {
+    // a network round trip must not hold up the thread that serves every other request
+    let fetched = if tile_meta.is_remote() {
+      let meta = tile_meta.clone();
+      tokio::task::spawn_blocking(move || meta.get_tile(z, x, y))
+        .await
+        .unwrap_or_else(|err| Err(crate::errors::Error::Remote(err.to_string())))
+    } else {
+      tile_meta.get_tile(z, x, y)
+    };
+    let stored = fetched.unwrap_or_else(|err| {
       println!("tile {}/{}/{} of {}: {}", z, x, y, tile_meta.id, err);
       None
     });
@@ -272,6 +281,39 @@ mod tests {
     assert!(head.starts_with("HTTP/1.1 200"), "{}", head);
 
     std::fs::remove_dir_all(&dir).ok();
+  }
+
+  /// A remote TileJSON served through our own server: tiles.json is rewritten to point back at
+  /// us, and a tile is fetched from the remote on demand.
+  #[test]
+  fn proxies_a_remote_tilejson_over_http() {
+    let remote_port = crate::tiles::tests::spawn_web_server();
+    let port = 19874;
+    std::thread::spawn(move || {
+      let _ = crate::server::run(port);
+    });
+    std::thread::sleep(Duration::from_millis(300));
+
+    let key = String::from("remote");
+    let url = format!("http://127.0.0.1:{}/tilejson", remote_port);
+    set_mbtiles(&key, PathBuf::from(&url), Box::new(|_| ())).unwrap();
+
+    let (head, body) = get(port, "/remote/tiles.json");
+    assert!(head.starts_with("HTTP/1.1 200"), "{}", head);
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["tiles"][0], "http://localhost:19874/remote/tiles/{z}/{x}/{y}.pbf");
+    assert_eq!(json["maxzoom"], 14);
+    assert_eq!(json["vector_layers"][0]["id"], "water");
+
+    let (head, body) = get(port, "/remote/tiles/0/0/0.pbf");
+    assert!(head.starts_with("HTTP/1.1 200"), "{}", head);
+    assert!(head.to_lowercase().contains("application/x-protobuf"), "{}", head);
+    assert!(!body.is_empty());
+    // a tile the remote does not have is an empty answer, and the server keeps going
+    let (head, _) = get(port, "/remote/tiles/5/1/1.pbf");
+    assert!(head.starts_with("HTTP/1.1 204"), "{}", head);
+    let (head, _) = get(port, "/remote/tiles.json");
+    assert!(head.starts_with("HTTP/1.1 200"), "{}", head);
   }
 
   /// Serves the fixtures named in MBVIEW_SERVE (comma separated paths) until killed, for looking

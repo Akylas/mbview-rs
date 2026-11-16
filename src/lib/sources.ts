@@ -62,7 +62,19 @@ export interface SourceEntry {
 /* naming                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/** Whether a "path" is a web address (a remote PMTiles, TileJSON or tile template). */
+export function isRemote(path: string) {
+  return /^https?:\/\/\S+$/i.test(path);
+}
+
+/** The last meaningful part of a path, or of a web address: its last segment, else its host. */
 export function basename(path: string) {
+  if (isRemote(path)) {
+    const [, rest = path] = path.split('://');
+    const [host, ...segments] = rest.split(/[?#]/)[0].split('/');
+    const last = segments.filter((segment) => segment && !segment.includes('{')).pop();
+    return last || host;
+  }
   return path.split(/[\\/]/).pop() || path;
 }
 

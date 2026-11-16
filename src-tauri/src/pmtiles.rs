@@ -15,6 +15,7 @@ use flate2::read::GzDecoder;
 use serde_json::Value as JSONValue;
 
 use crate::errors::{Error, Result};
+use crate::remote;
 
 pub const MAGIC: &[u8; 7] = b"PMTiles";
 const HEADER_LEN: usize = 127;
@@ -296,8 +297,28 @@ fn read_exact_at(file: &File, mut buf: &mut [u8], mut offset: u64) -> std::io::R
   }
 }
 
+/// Where the bytes of an archive come from.
+enum Source {
+  File(File),
+  /// Read with HTTP range requests.
+  Http(String),
+}
+
+impl Source {
+  fn read(&self, offset: u64, length: u64) -> Result<Vec<u8>> {
+    match self {
+      Source::File(file) => {
+        let mut buf = vec![0u8; length as usize];
+        read_exact_at(file, &mut buf, offset)?;
+        Ok(buf)
+      }
+      Source::Http(url) => remote::get_range(url, offset, length),
+    }
+  }
+}
+
 pub struct Pmtiles {
-  file: File,
+  source: Source,
   file_len: u64,
   pub header: Header,
   pub metadata: JSONValue,
@@ -317,11 +338,23 @@ impl Pmtiles {
   pub fn open(path: &Path) -> Result<Pmtiles> {
     let file = File::open(path)?;
     let file_len = file.metadata()?.len();
-    let mut head = [0u8; HEADER_LEN];
     if file_len < HEADER_LEN as u64 {
       return Err(Error::InvalidPmtiles(String::from("file too small")));
     }
-    read_exact_at(&file, &mut head, 0)?;
+    Pmtiles::from_source(Source::File(file), Some(file_len))
+  }
+
+  /// An archive on a web server, which has to answer range requests.
+  pub fn open_url(url: &str) -> Result<Pmtiles> {
+    Pmtiles::from_source(Source::Http(url.to_string()), None)
+  }
+
+  pub fn is_remote(&self) -> bool {
+    matches!(self.source, Source::Http(_))
+  }
+
+  fn from_source(source: Source, known_len: Option<u64>) -> Result<Pmtiles> {
+    let head = source.read(0, HEADER_LEN as u64)?;
     let header = Header::parse(&head)?;
 
     // a tile compression we cannot undo would only fail later, tile by tile
@@ -335,8 +368,22 @@ impl Pmtiles {
       _ => {}
     }
 
+    // over HTTP nobody told us the size: the sections of the header are all there is to it
+    let file_len = known_len.unwrap_or_else(|| {
+      [
+        (header.root_offset, header.root_length),
+        (header.metadata_offset, header.metadata_length),
+        (header.leaf_offset, header.leaf_length),
+        (header.data_offset, header.data_length),
+      ]
+      .iter()
+      .map(|(offset, length)| offset.saturating_add(*length))
+      .max()
+      .unwrap_or(0)
+    });
+
     let mut archive = Pmtiles {
-      file,
+      source,
       file_len,
       header,
       metadata: JSONValue::Null,
@@ -364,9 +411,7 @@ impl Pmtiles {
         )))
       }
     }
-    let mut buf = vec![0u8; length as usize];
-    read_exact_at(&self.file, &mut buf, offset)?;
-    Ok(buf)
+    self.source.read(offset, length)
   }
 
   fn read_directory(&self, offset: u64, length: u64) -> Result<Vec<Entry>> {

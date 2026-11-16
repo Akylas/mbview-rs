@@ -37,8 +37,10 @@
     applySky,
     applyTerrain,
     applyVisibility,
+    basename,
     boundsOf,
     detectTileSize,
+    isRemote,
     isDemSource,
     isTerrainSuspended,
     makeSource,
@@ -57,6 +59,7 @@
   import FileDrop from './FileDrop.svelte';
   import type { Feature } from './Map';
   import MapPopup from './MapPopup.svelte';
+  import OpenUrlDialog from './OpenUrlDialog.svelte';
   import SettingsSheet from './SettingsSheet.svelte';
   import SourceInfo from './SourceInfo.svelte';
   import SourcePanel from './SourcePanel.svelte';
@@ -88,6 +91,8 @@
   let activeKey: MapKey = 'main';
   let panelSheetOpen = false;
   let settingsOpen = false;
+  let urlOpen = false;
+  let urlBusy = false;
   let infoSource: SourceEntry | null = null;
   let restoring = false;
 
@@ -129,6 +134,9 @@
         switch (event.payload.message) {
           case 'open':
             addMBTiles({ key: activeKey });
+            break;
+          case 'open_url':
+            urlOpen = true;
             break;
           case 'learn_more':
             openUrl(REPO_URL);
@@ -296,10 +304,6 @@
     return opened.some((source) => source.path === path);
   }
 
-  function basename(path: string) {
-    return path.split(/[\\/]/).pop() || path;
-  }
-
   let lastFolder: string = localStorage.getItem('lastOpenFolder');
 
   const TILE_EXTENSIONS = ['mbtiles', 'etiles', 'pmtiles'];
@@ -316,7 +320,7 @@
     layerType?: string;
     demEncoding?: DemEncoding;
     path?: string;
-  }) {
+  }): Promise<boolean> {
     try {
       const chosen =
         path ??
@@ -329,13 +333,28 @@
             { name: '*', extensions: ['*'] },
           ],
         }));
-      if (!chosen || typeof chosen !== 'string') return;
-      if (!(await setupMBtiles({ path: chosen, key, sourceType, layerType, demEncoding }))) return;
+      if (!chosen || typeof chosen !== 'string') return false;
+      if (!(await setupMBtiles({ path: chosen, key, sourceType, layerType, demEncoding })))
+        return false;
       rememberRecent(chosen);
-      lastFolder = await dirname(chosen);
-      localStorage.setItem('lastOpenFolder', lastFolder);
+      // a web address has no folder to come back to
+      if (!isRemote(chosen)) {
+        lastFolder = await dirname(chosen);
+        localStorage.setItem('lastOpenFolder', lastFolder);
+      }
+      return true;
     } catch (error) {
       console.error(error);
+      return false;
+    }
+  }
+
+  async function addRemote(url: string) {
+    urlBusy = true;
+    try {
+      if (await addMBTiles({ key: activeKey, path: url })) urlOpen = false;
+    } finally {
+      urlBusy = false;
     }
   }
 
@@ -1022,9 +1041,10 @@
     const target = event.target as HTMLElement;
     if (target?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
     if (event.metaKey || event.ctrlKey) {
-      if (event.key === 'o') {
+      if (event.key.toLowerCase() === 'o') {
         event.preventDefault();
-        addMBTiles({ key: activeKey });
+        if (event.shiftKey) urlOpen = true;
+        else addMBTiles({ key: activeKey });
       }
       return;
     }
@@ -1135,6 +1155,7 @@
           sources={activeSources}
           map={activeMap}
           on:add={(event) => addMBTiles({ key: activeKey, ...event.detail })}
+          on:addUrl={() => (urlOpen = true)}
           on:remove={(event) => removeSource(activeKey, event.detail)}
           on:zoom={(event) => fitTo(event.detail)}
           on:info={(event) => (infoSource = event.detail)}
@@ -1171,12 +1192,15 @@
             <button type="button" class="cta" on:click={() => addMBTiles({ key: 'main' })}>
               {$_('open_mbtiles')}
             </button>
+            <button type="button" class="cta" on:click={() => (urlOpen = true)}>
+              {$_('open_url')}
+            </button>
             {#if $settings.recent.length}
               <ul class="recent">
                 {#each $settings.recent.slice(0, 5) as path (path)}
                   <li>
                     <button type="button" on:click={() => addMBTiles({ key: 'main', path })}>
-                      {path.split(/[\\/]/).pop()}
+                      {basename(path)}
                     </button>
                   </li>
                 {/each}
@@ -1256,6 +1280,7 @@
         sources={activeSources}
         map={activeMap}
         on:add={(event) => addMBTiles({ key: activeKey, ...event.detail })}
+          on:addUrl={() => (urlOpen = true)}
         on:remove={(event) => removeSource(activeKey, event.detail)}
         on:zoom={(event) => fitTo(event.detail)}
         on:info={(event) => (infoSource = event.detail)}
@@ -1318,6 +1343,13 @@
   open={settingsOpen}
   onClose={() => (settingsOpen = false)}
   onBasemap={changeBasemap}
+/>
+
+<OpenUrlDialog
+  open={urlOpen}
+  busy={urlBusy}
+  onClose={() => (urlOpen = false)}
+  onOpen={addRemote}
 />
 
 <SourceInfo source={infoSource} onClose={() => (infoSource = null)} />

@@ -46,6 +46,7 @@ work?* — before wiring the tileset into anything.
 | **MBTiles and PMTiles**    | Open either format; PMTiles (v3, gzip or uncompressed) is read straight from the archive, no server involved |
 | **Vector and raster**      | MVT (`pbf`) and [MLT](https://github.com/maplibre/maplibre-tile-spec) vector tiles, plus raster tilesets — optionally drawn as hillshade or terrain-RGB |
 | **3D terrain**             | Add a Mapbox terrain-RGB or Terrarium tileset and the map is extruded with it: tilt up to 85°, adjust the exaggeration per file, with a sky on the horizon. Tilesets that declare their `encoding` are picked up automatically |
+| **Remote sources**         | *Open URL* takes a remote PMTiles (range requests), a TileJSON (e.g. `https://tiles.openfreemap.org/planet`) or a `{z}/{x}/{y}` template, so you can compare your own tiles with a hosted tileset |
 | **Every layer, coloured**  | A stable colour per source-layer name, so `water` is blue and `transportation` is orange in every file you open |
 | **Layer control**          | Show/hide a whole file or one of its layers, set per-file opacity, filter to points, lines or polygons |
 | **Stacking order**         | Drag files to restack them — the panel reads top-to-bottom exactly like the map draws            |
@@ -90,6 +91,7 @@ Then drop an `.mbtiles` file onto the window, or use <kbd>⌘</kbd>/<kbd>Ctrl</k
 | Key                                        | Action                                          |
 | ------------------------------------------ | ----------------------------------------------- |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>O</kbd> | Open an MBTiles file                            |
+| <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>O</kbd> | Open a remote URL (PMTiles, TileJSON, tile template) |
 | <kbd>L</kbd>                                | Show/hide the layers panel                      |
 | <kbd>S</kbd>                                | Split view                                      |
 | <kbd>F</kbd>                                | Feature table                                   |

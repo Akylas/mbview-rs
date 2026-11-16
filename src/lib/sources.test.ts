@@ -6,6 +6,8 @@ import {
   detectDemEncoding,
   applyOrder,
   applyVisibility,
+  basename,
+  isRemote,
   isOwnLayer,
   makeSource,
   mapLayerIds,
@@ -348,6 +350,15 @@ const detected = makeSource({ path: '/data/auto.mbtiles' }, demJson({ encoding: 
 check('a self-declared DEM becomes raster-dem', detected.sourceType === 'raster-dem');
 const plain = makeSource({ path: '/data/plain.mbtiles' }, demJson(), false);
 check('an ordinary raster stays raster', plain.sourceType === undefined);
+
+/* local paths and web addresses */
+check('http is remote', isRemote('https://tiles.openfreemap.org/planet'));
+check('a path is not remote', !isRemote('/data/a.pmtiles') && !isRemote('C:\\data\\a.mbtiles'));
+check('remote name is the last segment', basename('https://tiles.openfreemap.org/planet') === 'planet');
+check('remote name drops the query', basename('https://x.org/a/b.pmtiles?token=1') === 'b.pmtiles');
+check('remote name skips a template', basename('https://x.org/osm/{z}/{x}/{y}.pbf') === 'osm');
+check('remote name falls back to the host', basename('https://x.org/') === 'x.org');
+check('local names are unchanged', basename('/data/a.pmtiles') === 'a.pmtiles');
 
 Promise.all(pending).then(() => {
   console.log(failures === 0 ? '\nall good' : `\n${failures} failing`);
