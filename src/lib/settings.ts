@@ -12,6 +12,8 @@ export interface Settings {
   basemap: string;
   showBackground: boolean;
   inspect: InspectMode;
+  /** close the attribute popup as soon as the map is dragged, zoomed or rotated */
+  hidePopupOnMove: boolean;
   showTileBoundaries: boolean;
   showCollisionBoxes: boolean;
   geometryFilter: GeometryFilter;
@@ -30,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   basemap: 'basic',
   showBackground: false,
   inspect: 'click',
+  hidePopupOnMove: false,
   showTileBoundaries: false,
   showCollisionBoxes: false,
   geometryFilter: 'all',
