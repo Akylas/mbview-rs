@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.2.0](https://github.com/Akylas/mbview-rs/compare/v2.1.0...v2.2.0) (2026-11-17)
+
+
+### Features
+
+* open remote PMTiles, TileJSON and tile templates ([b125267](https://github.com/Akylas/mbview-rs/commit/b1252679c3704557f86c7385d876b78d38de64ac))
+* popup inspection tools (copy, layer highlight, drag, hide on move) ([d6e6fda](https://github.com/Akylas/mbview-rs/commit/d6e6fda8a320c2956683ec45698f8960f4d90915))
+
 ## [2.1.0](https://github.com/Akylas/mbview-rs/compare/v2.0.0...v2.1.0) (2026-11-08)
 
 
